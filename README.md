@@ -31,5 +31,15 @@ Uses Meta's Wearables Device Access Toolkit 1.0.1. On the demo iPhone:
 
 Without glasses, choose **iPhone** as the camera: everything else is the same.
 
+## Web prototype (design)
+
+`web-prototype/` is a clickable prototype of the planned app design (React + TypeScript + Vite):
+every screen and flow, light and dark themes, and motion. It runs on demo data, separate from the server.
+
+```
+cd web-prototype
+npm install
+npm run dev        # http://localhost:5173
+```
 
 ## Reflections
