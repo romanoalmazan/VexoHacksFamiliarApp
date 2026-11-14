@@ -30,3 +30,6 @@ Uses Meta's Wearables Device Access Toolkit 1.0.1. On the demo iPhone:
 4. **Look for faces**. The first time, Meta AI asks to allow the camera.
 
 Without glasses, choose **iPhone** as the camera: everything else is the same.
+
+
+## Reflections
