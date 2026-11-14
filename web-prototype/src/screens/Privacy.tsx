@@ -53,6 +53,7 @@ const lockOptions: { id: LockMode; label: string }[] = [
 
 const keeps = [
   { icon: 'people', text: 'Each registered person’s name, relationship and numbers describing their face. No photos.' },
+  { icon: 'mic', text: 'If you registered it, a description of how your own voice sounds. Never a recording.' },
   { icon: 'recap', text: 'Conversations with registered people, as text. No audio.' },
   { icon: 'eyeOff', text: 'Nothing about people who aren’t registered.' },
 ];

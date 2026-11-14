@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type Camera, useStore } from '../state/store';
 import { Icon } from '../components/Icon';
 import { Avatar, BandArt, Brand, SetupHeader, TalkingLabel } from '../components/ui';
@@ -224,10 +224,96 @@ export function CameraScreen() {
           type="button"
           className="btn btn-primary"
           disabled={needsLink}
-          onClick={() => { if (!state.camera) dispatch({ type: 'setCamera', camera }); go('now'); }}
+          onClick={() => { if (!state.camera) dispatch({ type: 'setCamera', camera }); go('voice'); }}
         >
-          {needsLink ? 'Link the glasses first' : 'Finish setup'}
+          {needsLink ? 'Link the glasses first' : 'Continue'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* 04b · Register my voice — the server's /voice connection (server/voice.py).
+   The wearer reads for 12 seconds through the band; the server keeps a description of how
+   their voice sounds (me.json), never sound. Then "Me" is whoever sounds like the wearer.
+   Without it, the first voice heard after Listen is taken to be the wearer. */
+const READ_SECONDS = 12;
+const wave = [6, 10, 16, 24, 18, 30, 38, 26, 14, 20, 34, 40, 28, 18, 12, 22, 32, 26, 16, 10, 18, 28, 36, 24, 14, 8, 12, 20, 14, 8, 6];
+
+export function VoiceScreen() {
+  const { state, dispatch, go, interactive } = useStore();
+  const [phase, setPhase] = useState<'idle' | 'reading' | 'learning'>('idle');
+  const [left, setLeft] = useState(READ_SECONDS);
+  const inSetup = !state.lastConversation && !state.listening;
+
+  useEffect(() => {
+    if (phase !== 'reading' || !interactive) return;
+    if (left <= 0) { setPhase('learning'); return; }
+    const t = setTimeout(() => setLeft((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [phase, left, interactive]);
+
+  useEffect(() => {
+    if (phase !== 'learning') return;
+    const t = setTimeout(() => { dispatch({ type: 'registerVoice', seconds: 10.8 }); setPhase('idle'); setLeft(READ_SECONDS); }, 900);
+    return () => clearTimeout(t);
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const blocked = !state.band ? 'Connect the band first.' : state.listening ? 'Switch Listen off first.' : null;
+  const registered = !!state.voice;
+
+  return (
+    <div className="screen screen--pad stagger">
+      <SetupHeader step={4} backTo="camera" />
+      <h1 className="t-title" style={{ marginTop: 20 }}>Register my voice</h1>
+      <p className="t-lead" style={{ marginTop: 8 }}>
+        For the person wearing the band. Familiar keeps a description of how your voice sounds, not a recording, so it knows which voice is yours.
+      </p>
+
+      <section aria-label="Sentence to read aloud" className="card" style={{ marginTop: 20, borderRadius: 20, padding: '18px 20px 16px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span className="t-small" style={{ fontWeight: 500 }}>Read this in your normal voice</span>
+          {registered && phase === 'idle'
+            ? <span className="chip chip--sm chip--live"><Icon name="check" size={13} stroke={3} />Registered</span>
+            : phase === 'reading' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--blue)' }}><span className="dot dot--blue dot--live" />Listening</span>}
+        </div>
+        <p style={{ marginTop: 10, fontSize: 20, lineHeight: '28px', fontWeight: 600, letterSpacing: '-0.01em' }}>
+          “When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow.”
+        </p>
+        <svg role="img" aria-label="Your voice level" width="308" height="40" viewBox="0 0 308 44" className={`waveform ${phase === 'reading' ? 'waveform--live' : ''}`} style={{ marginTop: 16, display: 'block', opacity: phase === 'reading' ? 1 : 0.35, transition: 'opacity var(--dur)' }}>
+          {wave.map((h, i) => <rect key={i} x={6 + i * 9.8} y={22 - h / 2} width="3" height={h} rx="1.5" fill="var(--accent)" style={{ animationDelay: `${(i % 7) * 0.09}s` }} />)}
+        </svg>
+        <div className="progress" style={{ marginTop: 14, gridTemplateColumns: '1fr' }}>
+          <div><div className="progress-fill" style={{ width: `${phase === 'idle' ? (registered ? 100 : 0) : ((READ_SECONDS - left) / READ_SECONDS) * 100}%`, transition: 'width 1s linear' }} /></div>
+        </div>
+        <p className="t-small" style={{ marginTop: 8 }} aria-live="polite">
+          {phase === 'reading' ? `Keep reading for ${left} more second${left === 1 ? '' : 's'}…`
+            : phase === 'learning' ? 'Learning your voice…'
+            : registered ? `Your voice is registered (${state.voice!.seconds.toFixed(1)} s of reading).`
+            : `Wear the band as usual and read for ${READ_SECONDS} seconds. Its light turns blue while it listens.`}
+        </p>
+      </section>
+
+      {blocked && <p className="t-small" style={{ marginTop: 10, paddingLeft: 4, color: 'var(--danger-ink)' }}>{blocked}</p>}
+
+      <div className="push stack-10">
+        {phase === 'idle' && (
+          <button type="button" className={`btn ${registered ? 'btn-secondary' : 'btn-primary'}`} disabled={!!blocked} onClick={() => setPhase('reading')}>
+            <Icon name="mic" size={20} />{registered ? 'Read it again' : 'Start, then read it out loud'}
+          </button>
+        )}
+        {registered && phase === 'idle' && (
+          <button type="button" className="btn btn-primary" onClick={() => go(inSetup ? 'now' : 'settings')}>{inSetup ? 'Finish setup' : 'Done'}</button>
+        )}
+        {!registered && phase === 'idle' && (
+          <button type="button" className="btn btn-text" onClick={() => go('now')}>Skip for now</button>
+        )}
+        {registered && phase === 'idle' && (
+          <button type="button" className="btn btn-text" style={{ color: 'var(--danger-ink)' }} onClick={() => dispatch({ type: 'forgetVoice' })}>Forget my voice</button>
+        )}
+        <p className="t-small t-center">
+          {registered ? 'In every conversation, the voice that sounds like yours is shown as “Me”.' : 'Without a registered voice, the first voice heard after Listen is taken to be yours.'}
+        </p>
       </div>
     </div>
   );

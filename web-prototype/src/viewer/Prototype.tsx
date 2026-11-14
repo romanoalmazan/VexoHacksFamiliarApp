@@ -23,7 +23,7 @@ function StatusBar({ hideTime }: { hideTime?: boolean }) {
 type TxKind = 'push' | 'pop' | 'fade' | 'up' | 'down' | 'zoom' | 'none';
 const TABS = new Set(['now', 'people', 'recap', 'privacy']);
 const DEPTH: Record<string, number> = {
-  welcome: 0, connect: 0.5, pair: 1, 'setup-privacy': 2, camera: 3,
+  welcome: 0, connect: 0.5, pair: 1, 'setup-privacy': 2, camera: 3, voice: 3.5,
   now: 4, people: 4, recap: 4, privacy: 4, island: 4,
   recognized: 5, 'possible-match': 5, profile: 5, settings: 5, register: 5,
 };

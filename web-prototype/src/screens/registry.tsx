@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { type Action, type State, baseState, reducer } from '../state/store';
-import { CameraScreen, PairScreen, SetupPrivacyScreen, WelcomeScreen } from './Setup';
+import { CameraScreen, PairScreen, SetupPrivacyScreen, VoiceScreen, WelcomeScreen } from './Setup';
 import { DynamicIslandScreen, LockScreen, NowScreen } from './Event';
 import { PossibleMatchScreen, RecognizedScreen, RegisterScreen } from './Recognition';
 import { PeopleScreen, ProfileScreen, RecapScreen } from './After';
@@ -19,6 +19,7 @@ export const routes: Record<string, ComponentType> = {
   pair: PairScreen,
   'setup-privacy': SetupPrivacyScreen,
   camera: CameraScreen,
+  voice: VoiceScreen,
   now: NowScreen,
   lock: LockScreen,
   island: DynamicIslandScreen,
@@ -38,7 +39,8 @@ const run = (from: State, ...actions: Action[]) => actions.reduce(reducer, from)
 // Demo states, built by replaying real app actions so they stay consistent.
 const connected = run(baseState, { type: 'connect', address: 'ws://familiar-laptop.local:8765', code: '482193' });
 const paired = run(connected, { type: 'pair', id: '64', pretend: false });
-const ready = run(paired, { type: 'setCamera', camera: 'glasses' }, { type: 'linkGlasses' }, { type: 'toast', toast: null });
+const cameraSet = run(paired, { type: 'setCamera', camera: 'glasses' }, { type: 'linkGlasses' }, { type: 'toast', toast: null });
+const ready = run(cameraSet, { type: 'registerVoice', seconds: 10.8 }, { type: 'toast', toast: null });
 const listening = run(ready, { type: 'startListening' });
 const after = run(listening, { type: 'stopListening' }, { type: 'toast', toast: null });
 
@@ -46,6 +48,7 @@ export const presets = {
   base: baseState,
   connected,
   paired,
+  cameraSet,
   ready,
   listening,
   listeningUnregistered: run(listening, { type: 'simUnregistered' }),
@@ -95,6 +98,7 @@ export const rows: Row[] = [
       { id: 'pair', num: '02', title: 'Pair band', route: 'pair', preset: presets.connected, ...phone },
       { id: 'setup-privacy', num: '03', title: 'How Familiar listens', route: 'setup-privacy', preset: presets.paired, ...phone },
       { id: 'camera', num: '04', title: 'Choose a camera', route: 'camera', preset: presets.paired, ...phone },
+      { id: 'voice', num: '04b', title: 'Register my voice', route: 'voice', preset: presets.cameraSet, ...phone },
     ],
   },
   {

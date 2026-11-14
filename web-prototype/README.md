@@ -34,9 +34,10 @@ about. Words from anyone who isn't registered are hidden and never kept.
 | 01b Connect to your server | Server address + 6-digit pairing code, sent as `Authorization: Bearer <code>`. No accounts; keys stay on the server. |
 | 02 Pair band | The band's Bluetooth link (`ios/VexoBand`), "Use a pretend band", "Blink the band's light", team band 64. |
 | 03 How Familiar listens | The recording rules: only registered people are kept; others are hidden and dropped; pictures are compared and thrown away; text only; Deepgram hears the room. |
+| 04b Register my voice | `/voice`: the wearer reads for 12 s through the band; the server keeps a description of the voice (`me.json`), never sound. Then “Me” is whoever sounds like the wearer; without it, the first voice. Forget my voice → `{"type": "forget"}`. |
 | 04 Choose a camera | Meta glasses (Wearables Device Access Toolkit, Developer Mode, link via Meta AI) or the iPhone camera. "Say who it is out loud". |
 | 05/06 Now, Listen, live transcript | The Listen toggle streams audio. `transcript` lines labelled by speaker; unregistered lines arrive as `{"hidden": true}` and show as "not kept". |
-| "In view" card, 08 Recognized | `/faces` → `{"people": [{name, relationship, match: "sure", recall}]}`. The first voice after Listen is the wearer ("Me"). |
+| "In view" card, 08 Recognized | `/faces` → `{"people": [{name, relationship, match: "sure", recall}]}`. |
 | 09 Possible match | `match: "possible"` — no name is said or shown until the wearer confirms. |
 | 10 Register a person | `{"type": "enrol", name, relationship, consent: true, jpeg}` — refused without consent. Several photos work best. |
 | 11 Conversation | What `save()` kept (text only, nothing if no registered person) and what Gemini wrote: `recall`, `follow_ups`. |

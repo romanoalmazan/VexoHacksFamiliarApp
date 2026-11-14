@@ -124,8 +124,8 @@ export function TabBar({ active }: { active: 'now' | 'people' | 'recaps' | 'priv
   );
 }
 
-const setupSteps = ['Server', 'Band', 'Privacy', 'Camera'];
-export function SetupHeader({ step, backTo }: { step: 0 | 1 | 2 | 3; backTo: string }) {
+const setupSteps = ['Server', 'Band', 'Privacy', 'Camera', 'Voice'];
+export function SetupHeader({ step, backTo }: { step: 0 | 1 | 2 | 3 | 4; backTo: string }) {
   const { go } = useStore();
   return (
     <div className="setup-head">

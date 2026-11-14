@@ -83,6 +83,8 @@ export function SettingsScreen() {
           <Row icon="band" title="Band" value={state.band ? (state.band.pretend ? 'Pretend band' : `Band ${state.band.id}`) : 'Not paired'} onClick={() => go('pair')} />
           <div className="divider" style={{ marginLeft: 58 }} />
           <Row icon="eye" title="Camera" value={cameraLabel} onClick={() => go('camera')} />
+          <div className="divider" style={{ marginLeft: 58 }} />
+          <Row icon="mic" title="My voice" value={state.voice ? 'Registered' : 'Not registered'} onClick={() => go('voice')} />
         </div>
 
         <SectionTitle style={{ marginTop: 24 }}>Recognition</SectionTitle>

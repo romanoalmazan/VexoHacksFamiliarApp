@@ -199,6 +199,7 @@ function NowLive() {
           <p className="t-row">Live transcript</p>
           <span className="t-small num">since {clock(0, true)}</span>
         </div>
+        <p className="t-small" style={{ marginTop: 2 }}>{state.voice ? '“Me” is found by your registered voice.' : '“Me” is the first voice heard after Listen.'}</p>
         <Transcript lines={state.transcript} style={{ marginTop: 10, maxHeight: 210 }} />
       </section>
       <button type="button" className="btn btn-danger" style={{ marginTop: 12 }} onClick={() => { dispatch({ type: 'stopListening' }); go('recap'); }}>

@@ -25,6 +25,7 @@ export interface State {
   camera: Camera | null;
   glassesLinked: boolean;
   speak: boolean;                                      // "Say who it is out loud"
+  voice: { seconds: number } | null;                   // the wearer's registered voice (/voice → me.json)
   listening: boolean;                                  // the Listen toggle
   minutes: number;                                     // minutes since Listen (demo clock)
   lockMode: LockMode;
@@ -43,6 +44,7 @@ export const baseState: State = {
   camera: null,
   glassesLinked: false,
   speak: true,
+  voice: null,
   listening: false,
   minutes: 0,
   lockMode: 'private',
@@ -61,6 +63,8 @@ export type Action =
   | { type: 'setCamera'; camera: Camera }
   | { type: 'linkGlasses' }
   | { type: 'setSpeak'; on: boolean }
+  | { type: 'registerVoice'; seconds: number }
+  | { type: 'forgetVoice' }
   | { type: 'startListening' }
   | { type: 'stopListening' }
   | { type: 'simFace'; name: string; match: Match }
@@ -94,6 +98,10 @@ export function reducer(s: State, a: Action): State {
       return { ...s, glassesLinked: true, toast: { title: 'Meta glasses linked', sub: 'Meta AI approved Familiar.' } };
     case 'setSpeak':
       return { ...s, speak: a.on };
+    case 'registerVoice':
+      return { ...s, voice: { seconds: a.seconds }, toast: { title: 'Your voice is registered', sub: 'A description of how you sound, not a recording.' } };
+    case 'forgetVoice':
+      return { ...s, voice: null, toast: { title: 'Your voice was forgotten', sub: 'The first voice after Listen is taken as you.' } };
 
     case 'startListening':
       // The demo skips ahead to the moment Maria walks in: the glasses see her, the band hears her.
