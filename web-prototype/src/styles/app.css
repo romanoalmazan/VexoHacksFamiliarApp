@@ -464,3 +464,14 @@ textarea.input { height: 96px; padding: 12px 14px; resize: none; line-height: 22
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff;
   background: var(--accent-grad); box-shadow: var(--accent-glow);
 }
+
+/* ---------- Live transcript ---------- */
+.transcript { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; scrollbar-width: none; }
+.transcript::-webkit-scrollbar { display: none; }
+.transcript-line { font-size: 15px; line-height: 21px; color: var(--ink); animation: rise 360ms var(--ease-out) both; }
+.transcript-who {
+  display: inline-block; margin-right: 8px; padding: 1px 8px; border-radius: 999px;
+  font-size: 12px; line-height: 18px; font-weight: 700; background: var(--tint); color: var(--blue);
+}
+.transcript-who--me { background: var(--fill); color: var(--ink-2); }
+.transcript-line--hidden { display: flex; align-items: center; gap: 8px; color: var(--subtle); font-size: 14px; font-style: italic; }

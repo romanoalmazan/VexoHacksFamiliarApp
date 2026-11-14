@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react';
 import { type Appearance, useStore } from '../state/store';
 import { switchThemeSmoothly, useSystemTheme } from '../state/theme';
-import { initialsOf } from '../data/demo';
+import { WEARER } from '../data/demo';
 import { Icon } from '../components/Icon';
 import { Avatar, BackLink, SectionTitle, ToastView } from '../components/ui';
 
@@ -36,13 +36,13 @@ const options: { id: Appearance; label: string; preview: 'light' | 'dark' | 'spl
   { id: 'system', label: 'Automatic', preview: 'split' },
 ];
 
-function Row({ icon, title, value, onClick, danger }: { icon: string; title: string; value?: string; onClick?: () => void; danger?: boolean }) {
+function Row({ icon, title, value, onClick }: { icon: string; title: string; value?: string; onClick?: () => void }) {
   return (
-    <button type="button" className="list-link" style={{ minHeight: 52, color: danger ? 'var(--danger-ink)' : undefined }} onClick={onClick}>
-      <span className="tile tile--32" aria-hidden="true" style={danger ? { background: 'var(--danger)' } : undefined}><Icon name={icon} size={17} stroke={2} /></span>
-      <span className="t-row" style={{ flex: 1, fontWeight: 500, color: danger ? 'var(--danger-ink)' : undefined }}>{title}</span>
-      {value && <span className="t-sub">{value}</span>}
-      {!danger && <Icon name="chevron" size={16} className="chev" />}
+    <button type="button" className="list-link" style={{ minHeight: 52 }} onClick={onClick}>
+      <span className="tile tile--32" aria-hidden="true"><Icon name={icon} size={17} stroke={2} /></span>
+      <span className="t-row" style={{ flex: 1, fontWeight: 500 }}>{title}</span>
+      {value && <span className="t-sub" style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>}
+      <Icon name="chevron" size={16} className="chev" />
     </button>
   );
 }
@@ -51,7 +51,6 @@ function Row({ icon, title, value, onClick, danger }: { icon: string; title: str
 export function SettingsScreen() {
   const { state, dispatch, go } = useStore();
   const system = useSystemTheme();
-  const acct = state.account;
 
   const pick = (id: Appearance, e: MouseEvent<HTMLButtonElement>) => {
     if (id === state.appearance) return;
@@ -59,6 +58,8 @@ export function SettingsScreen() {
   };
 
   const lockLabel = { private: 'Private', name: 'Name', details: 'Details' }[state.lockMode];
+  const cameraLabel = state.camera === 'glasses' ? 'Meta glasses' : state.camera === 'iphone' ? 'iPhone' : 'Not chosen';
+  const host = state.server?.address.replace(/^wss?:\/\//, '');
 
   return (
     <div className="screen">
@@ -66,16 +67,38 @@ export function SettingsScreen() {
         <BackLink label="Back" />
         <h1 className="t-large" style={{ marginTop: 4 }}>Settings</h1>
 
-        <button type="button" className="card list-link" style={{ marginTop: 16, minHeight: 76, borderRadius: 'var(--r-lg)' }} onClick={() => go(acct ? 'settings' : 'signup')}>
-          <Avatar initials={acct ? initialsOf(acct.name) : undefined} unknown={!acct} />
+        <button type="button" className="card list-link" style={{ marginTop: 16, minHeight: 76, borderRadius: 'var(--r-lg)' }} onClick={() => go('connect')}>
+          <Avatar initials={state.server ? WEARER[0] : undefined} unknown={!state.server} />
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-            <span className="t-row">{acct ? acct.name : 'Sign in to Familiar'}</span>
+            <span className="t-row">{state.server ? `${WEARER}’s Familiar` : 'Connect to a server'}</span>
             <span className="t-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {acct ? `${acct.method === 'apple' ? 'Signed in with Apple' : acct.email}${acct.verified ? '' : ' · not verified'}` : 'Back up settings and pair new bands'}
+              {state.server ? `Connected · ${host}` : 'Address and pairing code from the server'}
             </span>
           </span>
           <Icon name="chevron" size={16} className="chev" />
         </button>
+
+        <SectionTitle style={{ marginTop: 24 }}>Devices</SectionTitle>
+        <div className="card card-list" style={{ marginTop: 8 }}>
+          <Row icon="band" title="Band" value={state.band ? (state.band.pretend ? 'Pretend band' : `Band ${state.band.id}`) : 'Not paired'} onClick={() => go('pair')} />
+          <div className="divider" style={{ marginLeft: 58 }} />
+          <Row icon="eye" title="Camera" value={cameraLabel} onClick={() => go('camera')} />
+        </div>
+
+        <SectionTitle style={{ marginTop: 24 }}>Recognition</SectionTitle>
+        <div className="card card-list" style={{ marginTop: 8 }}>
+          <label className="list-link" style={{ minHeight: 52, cursor: 'pointer' }}>
+            <span className="tile tile--32" aria-hidden="true"><Icon name="speaker" size={17} stroke={2} /></span>
+            <span className="t-row" style={{ flex: 1, fontWeight: 500 }}>Say who it is out loud</span>
+            <span className="check" style={{ margin: 0, padding: 0, background: 'transparent' }}>
+              <input type="checkbox" checked={state.speak} onChange={(e) => dispatch({ type: 'setSpeak', on: e.target.checked })} aria-label="Say who it is out loud" />
+            </span>
+          </label>
+          <div className="divider" style={{ marginLeft: 58 }} />
+          <Row icon="lock" title="Lock Screen shows" value={lockLabel} onClick={() => go('privacy')} />
+          <div className="divider" style={{ marginLeft: 58 }} />
+          <Row icon="people" title="People & faces" value={`${state.people.length} registered`} onClick={() => go('people')} />
+        </div>
 
         <SectionTitle style={{ marginTop: 24 }}>Appearance</SectionTitle>
         <div className="card" style={{ marginTop: 8, padding: '18px 12px 14px' }}>
@@ -83,14 +106,7 @@ export function SettingsScreen() {
             {options.map((o) => {
               const on = state.appearance === o.id;
               return (
-                <button
-                  key={o.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  className="appearance-option"
-                  onClick={(e) => pick(o.id, e)}
-                >
+                <button key={o.id} type="button" role="radio" aria-checked={on} className="appearance-option" onClick={(e) => pick(o.id, e)}>
                   <ThemePreview theme={o.preview} />
                   <span className="appearance-label">{o.label}</span>
                   <span className={`appearance-radio ${on ? 'appearance-radio--on' : ''}`} aria-hidden="true">
@@ -105,24 +121,15 @@ export function SettingsScreen() {
           {state.appearance === 'system' ? `Automatic follows your iPhone — it’s ${system} right now.` : `Familiar always uses the ${state.appearance} theme.`}
         </p>
 
-        <SectionTitle style={{ marginTop: 24 }}>Familiar</SectionTitle>
-        <div className="card card-list" style={{ marginTop: 8 }}>
-          <Row icon="band" title="Band" value={state.pairedBand ? `Familiar Band · ${state.pairedBand}` : 'Not paired'} onClick={() => go('pair')} />
-          <div className="divider" style={{ marginLeft: 58 }} />
-          <Row icon="lock" title="Lock Screen shows" value={lockLabel} onClick={() => go('privacy')} />
-          <div className="divider" style={{ marginLeft: 58 }} />
-          <Row icon="shield" title="Privacy" onClick={() => go('privacy')} />
-        </div>
-
-        {acct && (
+        {state.server && (
           <div className="card card-list" style={{ marginTop: 16 }}>
-            <button type="button" className="list-link" style={{ minHeight: 52, justifyContent: 'center', color: 'var(--danger-ink)', fontSize: 17, fontWeight: 500 }} onClick={() => dispatch({ type: 'signOut' })}>
-              Sign out
+            <button type="button" className="list-link" style={{ minHeight: 52, justifyContent: 'center', color: 'var(--danger-ink)', fontSize: 17, fontWeight: 500 }} onClick={() => dispatch({ type: 'disconnect' })}>
+              Disconnect from server
             </button>
           </div>
         )}
 
-        <p className="t-small t-center" style={{ marginTop: 24, color: 'var(--subtle)' }}>Familiar 1.0 · Voiceprints never leave this iPhone</p>
+        <p className="t-small t-center" style={{ marginTop: 24, color: 'var(--subtle)' }}>Familiar 1.0 · Only people who agreed are recognised</p>
       </main>
       <ToastView bottom={28} />
     </div>

@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 import { useStore } from '../state/store';
-import type { Person } from '../data/demo';
+import { type Person, initialsOf } from '../data/demo';
 import { LogoGlyph } from './Logo';
 
 /* ---------- Avatars ---------- */
@@ -45,8 +45,8 @@ export function Brand() {
 /* ---------- Header profile button → Settings ---------- */
 export function ProfileButton() {
   const { state, go } = useStore();
-  const name = state.account?.name;
-  const initials = name ? name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase() : null;
+  // The wearer's monogram once the app is paired with a server; a plain icon before that.
+  const initials = state.server ? 'E' : null;
   return (
     <button type="button" className={`profile-btn ${initials ? 'profile-btn--account' : ''}`} aria-label="Settings" onClick={() => go('settings')}>
       {initials ?? <Icon name="person" size={19} stroke={1.9} />}
@@ -124,15 +124,15 @@ export function TabBar({ active }: { active: 'now' | 'people' | 'recaps' | 'priv
   );
 }
 
-const setupSteps = ['Pair', 'Privacy', 'Voice'];
-export function SetupHeader({ step, backTo }: { step: 0 | 1 | 2; backTo: string }) {
+const setupSteps = ['Server', 'Band', 'Privacy', 'Camera'];
+export function SetupHeader({ step, backTo }: { step: 0 | 1 | 2 | 3; backTo: string }) {
   const { go } = useStore();
   return (
     <div className="setup-head">
       <button type="button" className="icon-back" aria-label="Back" onClick={() => go(backTo)}>
         <Icon name="back" />
       </button>
-      <ol className="setup-steps" aria-label="Setup progress">
+      <ol className="setup-steps" aria-label="Setup progress" style={{ gridTemplateColumns: `repeat(${setupSteps.length}, minmax(0, 1fr))` }}>
         {setupSteps.map((label, i) => (
           <li key={label} aria-current={i === step ? 'step' : undefined}>
             <div className={`setup-bar ${i <= step ? 'setup-bar--done' : ''}`} />
@@ -175,11 +175,12 @@ export function ToastView({ bottom = 24 }: { bottom?: number }) {
 }
 
 /* ---------- Chips ---------- */
-export function ConfidenceChip({ confidence, onNavy = true }: { confidence: 'likely' | 'unsure'; onNavy?: boolean }) {
-  const cls = confidence === 'likely' ? (onNavy ? 'chip chip--sm chip--navy' : 'chip chip--sm') : 'chip chip--sm chip--dashed';
+/** The server's face match: "sure" or "possible". */
+export function ConfidenceChip({ match, onNavy = true }: { match: 'sure' | 'possible'; onNavy?: boolean }) {
+  const cls = match === 'sure' ? (onNavy ? 'chip chip--sm chip--navy' : 'chip chip--sm') : 'chip chip--sm chip--dashed';
   return (
     <span className={cls}>
-      <Icon name="bars" size={14} stroke={2.5} />Voice match: {confidence}
+      <Icon name="eye" size={14} stroke={2.3} />Face match: {match}
     </span>
   );
 }
@@ -188,30 +189,13 @@ export function ConfidenceChip({ confidence, onNavy = true }: { confidence: 'lik
 export function PersonRow({ person, sub, onClick }: { person: Person; sub: string; onClick: () => void }) {
   return (
     <button type="button" className="list-link" onClick={onClick}>
-      <Avatar initials={person.initials} saved={person.savedTonight} />
+      <Avatar initials={initialsOf(person.name)} saved={(person.lastSeen ?? '').startsWith('Today')} />
       <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <span className="t-row">{person.name}</span>
         <span className="t-sub">{sub}</span>
       </span>
       <Icon name="chevron" size={18} className="chev" />
     </button>
-  );
-}
-
-export function DraftRow({ title, lines, onReview, primary }: {
-  title: string; lines: string[]; onReview: () => void; primary?: boolean;
-}) {
-  return (
-    <div className="card row">
-      <Avatar unknown />
-      <div className="row-body">
-        <p className="t-row">{title}</p>
-        {lines.map((l, i) => <p key={l} className="t-sub" style={i === 0 ? { marginTop: 2 } : undefined}>{l}</p>)}
-      </div>
-      <button type="button" className={`btn-sm ${primary ? 'btn-sm--primary' : ''}`} style={primary ? { padding: '0 14px' } : undefined} onClick={onReview} aria-label={`Review ${title.toLowerCase()}`}>
-        Review
-      </button>
-    </div>
   );
 }
 

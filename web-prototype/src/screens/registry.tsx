@@ -1,12 +1,12 @@
 import type { ComponentType } from 'react';
 import { type Action, type State, baseState, reducer } from '../state/store';
-import { PairScreen, SetupPrivacyScreen, VoiceScreen, WelcomeScreen } from './Setup';
+import { CameraScreen, PairScreen, SetupPrivacyScreen, WelcomeScreen } from './Setup';
 import { DynamicIslandScreen, LockScreen, NowScreen } from './Event';
-import { NewVoiceScreen, PossibleMatchScreen, RecognizedScreen } from './Recognition';
+import { PossibleMatchScreen, RecognizedScreen, RegisterScreen } from './Recognition';
 import { PeopleScreen, ProfileScreen, RecapScreen } from './After';
 import { PrivacyTabScreen, ShowSomeoneScreen } from './Privacy';
 import { HeroScreen } from './Hero';
-import { SignUpScreen, VerifyScreen } from './Account';
+import { ConnectScreen } from './Account';
 import { SettingsScreen } from './Settings';
 import { BrandScreen } from './Brand';
 
@@ -15,17 +15,16 @@ export const routes: Record<string, ComponentType> = {
   hero: HeroScreen,
   brand: BrandScreen,
   welcome: WelcomeScreen,
-  signup: SignUpScreen,
-  verify: VerifyScreen,
+  connect: ConnectScreen,
   pair: PairScreen,
   'setup-privacy': SetupPrivacyScreen,
-  voice: VoiceScreen,
+  camera: CameraScreen,
   now: NowScreen,
   lock: LockScreen,
   island: DynamicIslandScreen,
   recognized: RecognizedScreen,
   'possible-match': PossibleMatchScreen,
-  'new-voice': NewVoiceScreen,
+  register: RegisterScreen,
   recap: RecapScreen,
   people: PeopleScreen,
   profile: ProfileScreen,
@@ -37,26 +36,31 @@ export const routes: Record<string, ComponentType> = {
 const run = (from: State, ...actions: Action[]) => actions.reduce(reducer, from);
 
 // Demo states, built by replaying real app actions so they stay consistent.
-const paired = run(baseState, { type: 'pair', band: '4F2A' });
-const live = run(paired, { type: 'nameSession' }, { type: 'startSession' });
-const priyaSaved = run(live, { type: 'saveDraft', id: 'd-priya', name: 'Priya', cue: 'Works on gripper design' });
-const after = run(priyaSaved, { type: 'toast', toast: null }, { type: 'endSession' });
+const connected = run(baseState, { type: 'connect', address: 'ws://familiar-laptop.local:8765', code: '482193' });
+const paired = run(connected, { type: 'pair', id: '64', pretend: false });
+const ready = run(paired, { type: 'setCamera', camera: 'glasses' }, { type: 'linkGlasses' }, { type: 'toast', toast: null });
+const listening = run(ready, { type: 'startListening' });
+const after = run(listening, { type: 'stopListening' }, { type: 'toast', toast: null });
 
 export const presets = {
   base: baseState,
-  signedUp: run(baseState, { type: 'signUp', name: 'Alex Rivera', email: 'alex@hey.com', method: 'email' }),
-  sample2: run(baseState, { type: 'pair', band: '4F2A' }, { type: 'nextSample' }),
+  connected,
   paired,
-  live,
-  lockDetail: run(live, { type: 'setLock', mode: 'details' }),
-  unsure: run(live, { type: 'simMatch', personId: 'maya', confidence: 'unsure' }),
-  newVoice: run(live, { type: 'openDraft', id: 'd-priya' }),
-  saved: priyaSaved,
+  ready,
+  listening,
+  listeningUnregistered: run(listening, { type: 'simUnregistered' }),
+  lockDetail: run(listening, { type: 'setLock', mode: 'details' }),
+  possible: run(ready, { type: 'simFace', name: 'Leo', match: 'possible' }),
   after,
-  settingsLight: run(paired, { type: 'signUp', name: 'Alex Rivera', email: 'alex@hey.com', method: 'email' }, { type: 'verifyEmail' }, { type: 'setAppearance', appearance: 'light' }),
-  settingsDark: run(paired, { type: 'signUp', name: 'Alex Rivera', email: 'alex@hey.com', method: 'email' }, { type: 'verifyEmail' }, { type: 'setAppearance', appearance: 'dark' }),
-  liveDark: run(live, { type: 'setAppearance', appearance: 'dark' }),
-  profile: run(after, { type: 'addTask', id: 'f-portfolio' }, { type: 'toast', toast: null }, { type: 'openPerson', id: 'maya' }),
+  // Only the wearer and someone unregistered talked: the server keeps nothing.
+  afterNobody: run(
+    { ...ready, listening: true, minutes: 9, transcript: [{ speaker: 'me', text: 'Thank you, just leave it by the door.' }, { speaker: null, text: '', hidden: true }, { speaker: null, text: '', hidden: true }] },
+    { type: 'stopListening' }, { type: 'toast', toast: null },
+  ),
+  profile: run(after, { type: 'openPerson', name: 'Maria' }),
+  settingsLight: run(ready, { type: 'setAppearance', appearance: 'light' }),
+  settingsDark: run(ready, { type: 'setAppearance', appearance: 'dark' }),
+  listeningDark: run(listening, { type: 'setAppearance', appearance: 'dark' }),
 };
 
 export interface Board {
@@ -81,54 +85,53 @@ export const rows: Row[] = [
   },
   {
     title: 'Pitch hero',
-    boards: [{ id: 'hero', num: '00', title: 'Pitch hero (16:9)', route: 'hero', preset: presets.live, w: 1920, h: 1080, kind: 'hero' }],
+    boards: [{ id: 'hero', num: '00', title: 'Pitch hero (16:9)', route: 'hero', preset: presets.listening, w: 1920, h: 1080, kind: 'hero' }],
   },
   {
-    title: 'Account and setup · 1–4',
+    title: 'Setup · 1–4',
     boards: [
       { id: 'welcome', num: '01', title: 'Welcome', route: 'welcome', preset: presets.base, ...phone },
-      { id: 'signup', num: '01b', title: 'Sign up', route: 'signup', preset: presets.base, ...phone },
-      { id: 'verify', num: '01c', title: 'Verify email', route: 'verify', preset: presets.signedUp, ...phone },
-      { id: 'pair', num: '02', title: 'Pair band', route: 'pair', preset: presets.signedUp, ...phone },
-      { id: 'setup-privacy', num: '03', title: 'Privacy', route: 'setup-privacy', preset: presets.paired, ...phone },
-      { id: 'voice', num: '04', title: 'Teach your voice', route: 'voice', preset: presets.sample2, ...phone },
+      { id: 'connect', num: '01b', title: 'Connect to your server', route: 'connect', preset: presets.base, ...phone },
+      { id: 'pair', num: '02', title: 'Pair band', route: 'pair', preset: presets.connected, ...phone },
+      { id: 'setup-privacy', num: '03', title: 'How Familiar listens', route: 'setup-privacy', preset: presets.paired, ...phone },
+      { id: 'camera', num: '04', title: 'Choose a camera', route: 'camera', preset: presets.paired, ...phone },
     ],
   },
   {
-    title: 'At the event · 5–7',
+    title: 'Listening · 5–7',
     boards: [
-      { id: 'now-ready', num: '05', title: 'Now — ready', route: 'now', preset: presets.paired, ...phone },
-      { id: 'now-live', num: '06', title: 'Now — live', route: 'now', preset: presets.live, ...phone },
-      { id: 'lock-private', num: '07a', title: 'Lock Screen — private (default)', route: 'lock', preset: presets.live, ...phone },
-      { id: 'lock-detail', num: '07b', title: 'Lock Screen — detail (opt-in)', route: 'lock', preset: presets.lockDetail, ...phone },
-      { id: 'island', num: '07c', title: 'Dynamic Island — compact and expanded', route: 'island', preset: presets.live, w: 390, h: 680, kind: 'board' },
+      { id: 'now-ready', num: '05', title: 'Now — ready', route: 'now', preset: presets.ready, ...phone },
+      { id: 'now-live', num: '06', title: 'Now — listening, Maria in view', route: 'now', preset: presets.listeningUnregistered, ...phone },
+      { id: 'lock-private', num: '07a', title: 'Lock Screen — private (default)', route: 'lock', preset: presets.listening, ...phone },
+      { id: 'lock-detail', num: '07b', title: 'Lock Screen — details (opt-in)', route: 'lock', preset: presets.lockDetail, ...phone },
+      { id: 'island', num: '07c', title: 'Dynamic Island', route: 'island', preset: presets.listening, w: 390, h: 680, kind: 'board' },
     ],
   },
   {
     title: 'Recognition · 8–10',
     boards: [
-      { id: 'recognized', num: '08', title: 'Recognized', route: 'recognized', preset: presets.live, ...phone },
-      { id: 'possible-match', num: '09', title: 'Possible match', route: 'possible-match', preset: presets.unsure, ...phone },
-      { id: 'new-voice', num: '10', title: 'New voice', route: 'new-voice', preset: presets.newVoice, ...phone },
-      { id: 'now-saved', num: '10b', title: 'Now — Priya saved', route: 'now', preset: presets.saved, ...phone },
+      { id: 'recognized', num: '08', title: 'This is Maria (face match: sure)', route: 'recognized', preset: presets.listening, ...phone },
+      { id: 'possible-match', num: '09', title: 'Might be Leo (face match: possible)', route: 'possible-match', preset: presets.possible, ...phone },
+      { id: 'register', num: '10', title: 'Register a person', route: 'register', preset: presets.ready, ...phone },
     ],
   },
   {
-    title: 'After the event · 11–12',
+    title: 'After the conversation · 11–12',
     boards: [
-      { id: 'recap', num: '11', title: 'Recap', route: 'recap', preset: presets.after, ...phone },
-      { id: 'people', num: '12a', title: 'People', route: 'people', preset: presets.after, ...phone },
-      { id: 'profile', num: '12b', title: 'Profile', route: 'profile', preset: presets.profile, ...phone },
+      { id: 'recap', num: '11', title: 'Conversation — what to remember', route: 'recap', preset: presets.after, ...phone },
+      { id: 'recap-nobody', num: '11b', title: 'Conversation — nobody registered', route: 'recap', preset: presets.afterNobody, ...phone },
+      { id: 'people', num: '12a', title: 'People & faces', route: 'people', preset: presets.after, ...phone },
+      { id: 'profile', num: '12b', title: 'Profile — Maria', route: 'profile', preset: presets.profile, ...phone },
     ],
   },
   {
-    title: 'Privacy, consent and settings · 13–15',
+    title: 'Privacy and settings · 13–15',
     boards: [
-      { id: 'show-someone', num: '13', title: 'Show someone what Familiar does', route: 'show-someone', preset: presets.live, ...phone },
-      { id: 'privacy', num: '14', title: 'Privacy tab', route: 'privacy', preset: presets.live, ...phone },
+      { id: 'show-someone', num: '13', title: 'Show someone what Familiar does', route: 'show-someone', preset: presets.listening, ...phone },
+      { id: 'privacy', num: '14', title: 'Privacy tab', route: 'privacy', preset: presets.listening, ...phone },
       { id: 'settings', num: '15', title: 'Settings — light', route: 'settings', preset: presets.settingsLight, ...phone, theme: 'light' },
       { id: 'settings-dark', num: '15b', title: 'Settings — dark', route: 'settings', preset: presets.settingsDark, ...phone, theme: 'dark' },
-      { id: 'now-dark', num: '06d', title: 'Now — live, dark', route: 'now', preset: presets.liveDark, ...phone, theme: 'dark' },
+      { id: 'now-dark', num: '06d', title: 'Now — listening, dark', route: 'now', preset: presets.listeningDark, ...phone, theme: 'dark' },
     ],
   },
 ];

@@ -6,7 +6,7 @@ import { type Board, boards, routes, rows } from '../screens/registry';
 
 function StatusBar({ hideTime }: { hideTime?: boolean }) {
   const { state } = useStore();
-  const time = state.session === 'idle' ? '6:24' : clock(state.minutes);
+  const time = state.listening || state.lastConversation ? clock(state.minutes) : '1:58';
   return (
     <div className="status-bar" aria-hidden="true">
       <span>{hideTime ? '' : time}</span>
@@ -23,17 +23,15 @@ function StatusBar({ hideTime }: { hideTime?: boolean }) {
 type TxKind = 'push' | 'pop' | 'fade' | 'up' | 'down' | 'zoom' | 'none';
 const TABS = new Set(['now', 'people', 'recap', 'privacy']);
 const DEPTH: Record<string, number> = {
-  welcome: 0, signup: 0.4, verify: 0.7, pair: 1, 'setup-privacy': 2, voice: 3,
+  welcome: 0, connect: 0.5, pair: 1, 'setup-privacy': 2, camera: 3,
   now: 4, people: 4, recap: 4, privacy: 4, island: 4,
-  recognized: 5, 'possible-match': 5, profile: 5, settings: 5,
+  recognized: 5, 'possible-match': 5, profile: 5, settings: 5, register: 5,
 };
 
 function kindFor(from: string, to: string): TxKind {
   if (to === 'lock' || from === 'lock') return 'zoom';
   if (to === 'show-someone') return 'up';
   if (from === 'show-someone') return 'down';
-  if (to === 'new-voice') return 'none';        // the sheet animates itself
-  if (from === 'new-voice') return 'fade';
   if (TABS.has(from) && TABS.has(to)) return 'fade';
   const a = DEPTH[from] ?? 4;
   const b = DEPTH[to] ?? 4;
@@ -122,11 +120,12 @@ function SimulatePanel({ route, onReset }: { route: string; onReset: () => void 
   return (
     <aside className="panel">
       <h3>Simulate</h3>
-      <p className="panel-hint">Pretend the band heard something.</p>
+      <p className="panel-hint">Pretend the camera saw someone, or the band heard someone.</p>
       <div className="panel-buttons">
-        <button type="button" onClick={() => { dispatch({ type: 'simMatch', personId: 'maya', confidence: 'likely' }); go('lock'); }}>Familiar voice · Maya (likely)</button>
-        <button type="button" onClick={() => { dispatch({ type: 'simMatch', personId: 'maya', confidence: 'unsure' }); go('lock'); }}>Unsure voice · maybe Maya</button>
-        <button type="button" onClick={() => { dispatch({ type: 'simNewVoice' }); go('now'); }}>New, unknown voice</button>
+        <button type="button" onClick={() => { dispatch({ type: 'simFace', name: 'Maria', match: 'sure' }); go('lock'); }}>Maria in view · face match sure</button>
+        <button type="button" onClick={() => { dispatch({ type: 'simFace', name: 'Ruth', match: 'sure' }); go('now'); }}>Ruth walks in · sure</button>
+        <button type="button" onClick={() => { dispatch({ type: 'simFace', name: 'Leo', match: 'possible' }); go('lock'); }}>Might be Leo · possible</button>
+        <button type="button" onClick={() => { if (!state.listening) dispatch({ type: 'startListening' }); dispatch({ type: 'simUnregistered' }); go('now'); }}>Someone not registered speaks</button>
       </div>
 
       <h3>Appearance</h3>
@@ -146,12 +145,12 @@ function SimulatePanel({ route, onReset }: { route: string; onReset: () => void 
       <h3>State</h3>
       <dl className="panel-state">
         <dt>Route</dt><dd>{route}</dd>
-        <dt>Session</dt><dd>{state.session}{state.sessionName ? ` · ${state.sessionName}` : ''}</dd>
-        <dt>Demo clock</dt><dd>{state.session === 'idle' ? '—' : `${clock(state.minutes, true)} (${state.minutes} min in)`}</dd>
-        <dt>Match</dt><dd>{state.match ? `${state.match.personId} · ${state.match.confidence}` : '—'}</dd>
-        <dt>Unsaved voices</dt><dd>{state.drafts.length}</dd>
-        <dt>People saved</dt><dd>{state.people.length}</dd>
-        <dt>Tasks</dt><dd>{state.tasks.length}</dd>
+        <dt>Server</dt><dd>{state.server ? state.server.address.replace(/^wss?:\/\//, '') : '—'}</dd>
+        <dt>Band · camera</dt><dd>{state.band ? (state.band.pretend ? 'pretend' : state.band.id) : '—'} · {state.camera ?? '—'}</dd>
+        <dt>Listening</dt><dd>{state.listening ? `yes · ${clock(state.minutes, true)}` : 'no'}</dd>
+        <dt>In view</dt><dd>{state.inView ? `${state.inView.name} · ${state.inView.match}` : '—'}</dd>
+        <dt>Transcript</dt><dd>{state.transcript.length} lines ({state.transcript.filter((l) => l.hidden).length} hidden)</dd>
+        <dt>Registered</dt><dd>{state.people.length}</dd>
       </dl>
       <button type="button" className="panel-reset" onClick={onReset}>Reset demo to start</button>
     </aside>

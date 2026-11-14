@@ -37,13 +37,13 @@ export function HeroScreen() {
           </div>
           <span className="wordmark" style={{ fontSize: 34, lineHeight: '48px' }}>Familiar</span>
         </div>
-        <h1 style={{ marginTop: 56, fontSize: 72, lineHeight: '80px', fontWeight: 700, letterSpacing: '-0.025em' }}>Remember names<br />and where you<br />left off.</h1>
-        <p style={{ marginTop: 28, fontSize: 28, lineHeight: '40px', color: 'var(--muted)' }}>Your band taps your wrist when it hears someone you’ve met. One glance shows who it is and what you talked about.</p>
+        <h1 style={{ marginTop: 56, fontSize: 72, lineHeight: '80px', fontWeight: 700, letterSpacing: '-0.025em' }}>Know who’s<br />with you.</h1>
+        <p style={{ marginTop: 28, fontSize: 28, lineHeight: '40px', color: 'var(--muted)' }}>For people living with memory loss. The glasses see who’s there, the band hears the conversation, and Familiar says: “This is Maria, your daughter.”</p>
         <div style={{ marginTop: 48, display: 'flex', alignItems: 'flex-start', gap: 14, color: 'var(--navy)' }}>
           <Icon name="shield" size={30} stroke={1.75} style={{ marginTop: 1 }} />
           <span style={{ display: 'flex', flexDirection: 'column', fontSize: 24, lineHeight: '32px' }}>
-            <span style={{ fontWeight: 700 }}>Private by default.</span>
-            <span style={{ fontWeight: 500 }}>Voiceprints stay on your iPhone.</span>
+            <span style={{ fontWeight: 700 }}>Only people who agreed.</span>
+            <span style={{ fontWeight: 500 }}>Strangers’ words are never kept.</span>
           </span>
         </div>
       </div>
@@ -51,7 +51,7 @@ export function HeroScreen() {
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div style={{ width: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
           <div style={{ width: 200, height: 682, position: 'relative' }}>
-            <svg role="img" aria-label="Familiar band on its strap, sending tap rings" width="400" height="520" viewBox="0 0 400 520" fill="none" style={{ position: 'absolute', left: -100, top: 81 }}>
+            <svg role="img" aria-label="The Vexo band on its strap" width="400" height="520" viewBox="0 0 400 520" fill="none" style={{ position: 'absolute', left: -100, top: 81 }}>
               <circle cx="200" cy="260" r="96" stroke="var(--sky)" strokeWidth="2.5" />
               <circle cx="200" cy="260" r="132" stroke="var(--ring-1)" strokeWidth="2.5" />
               <circle cx="200" cy="260" r="168" stroke="var(--ring-2)" strokeWidth="2.5" />
@@ -61,19 +61,19 @@ export function HeroScreen() {
               <circle cx="200" cy="214" r="5" fill="var(--sky)" />
             </svg>
           </div>
-          <Step n={1} label="Wrist tap" />
+          <Step n={1} label="See and hear" />
         </div>
         <div style={{ width: 328, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
-          <MiniPhone label="Lock Screen: You know this voice, open to view">
+          <MiniPhone label="Lock Screen: someone you know is here">
             <StoreProvider initial={state} interactive={false}><LockScreen /></StoreProvider>
           </MiniPhone>
-          <Step n={2} label="Glance" />
+          <Step n={2} label="A gentle nudge" />
         </div>
         <div style={{ width: 328, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
-          <MiniPhone label="Familiar app: Maya Chen, voice match likely.">
+          <MiniPhone label="Familiar: This is Maria, your daughter.">
             <StoreProvider initial={state} interactive={false}><RecognizedScreen /></StoreProvider>
           </MiniPhone>
-          <Step n={3} label="Where you left off" />
+          <Step n={3} label="Who and what" />
         </div>
       </div>
     </div>

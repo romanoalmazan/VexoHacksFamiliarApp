@@ -1,249 +1,181 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import {
-  type Draft, type Person, CALENDAR_EVENT, T, followUps, initialPeople, initialsOf, sessionDrafts,
-} from '../data/demo';
+import { type Line, type Person, T, initialPeople, mariaAfterVisit, visitLines, clock } from '../data/demo';
+
+// App state for the prototype. Each action mirrors something the real app does with the
+// server (server/server.py): pair with a code, stream while Listen is on, get face matches
+// ("sure" / "possible"), enrol a person (consent required), forget a person.
 
 export type LockMode = 'private' | 'name' | 'details';
 export type Appearance = 'light' | 'dark' | 'system';
-export type SessionStatus = 'idle' | 'live' | 'paused' | 'ended';
-export type Confidence = 'likely' | 'unsure';
+export type Match = 'sure' | 'possible';
+export type Camera = 'glasses' | 'iphone';
 export interface Toast { title: string; sub?: string; initials?: string }
 
-export interface Account {
-  name: string;
-  email: string;
-  method: 'apple' | 'email';
-  verified: boolean;
+export interface Conversation {
+  people: string[];      // registered people who took part
+  kept: number;          // lines kept (wearer + registered people)
+  hidden: number;        // lines from people who are not registered: not kept
+  minutes: number;
 }
 
 export interface State {
   appearance: Appearance;
-  account: Account | null;
-  pairedBand: string | null;
-  sample: number;                 // voice sample 1–3 during setup
-  sampleDone: boolean;
-  session: SessionStatus;
-  sessionName: string | null;
-  minutes: number;                // minutes into the session (drives the demo clock)
+  server: { address: string; code: string } | null;   // ws://… + 6-digit pairing code
+  band: { id: string; pretend: boolean } | null;
+  camera: Camera | null;
+  glassesLinked: boolean;
+  speak: boolean;                                      // "Say who it is out loud"
+  listening: boolean;                                  // the Listen toggle
+  minutes: number;                                     // minutes since Listen (demo clock)
   lockMode: LockMode;
-  match: { personId: string; confidence: Confidence } | null;
-  drafts: Draft[];
-  activeDraftId: string | null;
+  inView: { name: string; match: Match } | null;       // what the camera sees right now
+  transcript: Line[];
   people: Person[];
-  activePersonId: string;
-  tasks: string[];                // follow-up ids added to Familiar tasks
+  activePerson: string;
   toast: Toast | null;
-  lastSessionMinutes: number | null;
+  lastConversation: Conversation | null;
 }
 
 export const baseState: State = {
   appearance: 'system',
-  account: null,
-  pairedBand: null,
-  sample: 1,
-  sampleDone: false,
-  session: 'idle',
-  sessionName: null,
+  server: null,
+  band: null,
+  camera: null,
+  glassesLinked: false,
+  speak: true,
+  listening: false,
   minutes: 0,
   lockMode: 'private',
-  match: null,
-  drafts: [],
-  activeDraftId: null,
+  inView: null,
+  transcript: [],
   people: initialPeople,
-  activePersonId: 'maya',
-  tasks: [],
+  activePerson: 'Maria',
   toast: null,
-  lastSessionMinutes: null,
+  lastConversation: null,
 };
 
 export type Action =
-  | { type: 'signUp'; name: string; email: string; method: 'apple' | 'email' }
-  | { type: 'verifyEmail' }
-  | { type: 'signOut' }
-  | { type: 'setAppearance'; appearance: Appearance }
-  | { type: 'pair'; band: string }
-  | { type: 'nextSample' }
-  | { type: 'nameSession' }
-  | { type: 'startSession' }
-  | { type: 'togglePause' }
-  | { type: 'endSession' }
-  | { type: 'setLock'; mode: LockMode }
-  | { type: 'simMatch'; personId: string; confidence: Confidence }
-  | { type: 'confirmMatch' }
-  | { type: 'rejectMatch' }
-  | { type: 'simNewVoice' }
-  | { type: 'openDraft'; id: string | null }
-  | { type: 'saveDraft'; id: string; name: string; cue: string }
-  | { type: 'discardDraft'; id: string }
-  | { type: 'declineLatest' }
-  | { type: 'addTask'; id: string }
-  | { type: 'addNote'; personId: string; text: string }
-  | { type: 'openPerson'; id: string }
-  | { type: 'deleteConversation'; personId: string; conversationId: string }
-  | { type: 'forget'; personId: string }
+  | { type: 'connect'; address: string; code: string }
+  | { type: 'disconnect' }
+  | { type: 'pair'; id: string; pretend: boolean }
+  | { type: 'setCamera'; camera: Camera }
+  | { type: 'linkGlasses' }
+  | { type: 'setSpeak'; on: boolean }
+  | { type: 'startListening' }
+  | { type: 'stopListening' }
+  | { type: 'simFace'; name: string; match: Match }
+  | { type: 'confirmFace' }
+  | { type: 'rejectFace' }
+  | { type: 'simUnregistered' }
+  | { type: 'register'; name: string; relationship: string; photos: number }
+  | { type: 'forget'; name: string }
   | { type: 'forgetAll' }
+  | { type: 'openPerson'; name: string }
+  | { type: 'setLock'; mode: LockMode }
+  | { type: 'setAppearance'; appearance: Appearance }
   | { type: 'toast'; toast: Toast | null }
   | { type: 'reset'; state: State };
 
-const TODAY = 'Today';
-
-function touchPerson(people: Person[], id: string, sessionName: string): Person[] {
-  return people.map((p) => (p.id === id ? { ...p, lastSeen: { event: sessionName, date: TODAY } } : p));
+function seen(people: Person[], name: string, minutes: number): Person[] {
+  return people.map((p) => (p.name === name ? { ...p, lastSeen: `Today, ${clock(minutes, true)}` } : p));
 }
 
 export function reducer(s: State, a: Action): State {
   switch (a.type) {
-    case 'signUp':
-      // Sign in with Apple arrives already verified; email accounts confirm a code first.
-      return { ...s, account: { name: a.name.trim(), email: a.email.trim(), method: a.method, verified: a.method === 'apple' } };
-    case 'signOut':
-      return { ...s, account: null, toast: { title: 'Signed out', sub: 'People and notes stay on this iPhone.' } };
-    case 'setAppearance':
-      return { ...s, appearance: a.appearance };
-    case 'verifyEmail':
-      return s.account ? { ...s, account: { ...s.account, verified: true } } : s;
+    case 'connect':
+      return { ...s, server: { address: a.address.trim(), code: a.code } };
+    case 'disconnect':
+      return { ...s, server: null, listening: false, inView: null, toast: { title: 'Disconnected from the server' } };
     case 'pair':
-      return { ...s, pairedBand: a.band };
-    case 'nextSample':
-      return s.sample >= 3 ? { ...s, sampleDone: true } : { ...s, sample: s.sample + 1 };
-    case 'nameSession':
-      return { ...s, sessionName: CALENDAR_EVENT.name };
-    case 'startSession': {
-      // The demo skips ahead to the moment Maya is detected (26 min in).
-      const name = s.sessionName ?? CALENDAR_EVENT.name;
+      return { ...s, band: { id: a.id, pretend: a.pretend } };
+    case 'setCamera':
+      return { ...s, camera: a.camera };
+    case 'linkGlasses':
+      return { ...s, glassesLinked: true, toast: { title: 'Meta glasses linked', sub: 'Meta AI approved Familiar.' } };
+    case 'setSpeak':
+      return { ...s, speak: a.on };
+
+    case 'startListening':
+      // The demo skips ahead to the moment Maria walks in: the glasses see her, the band hears her.
       return {
         ...s,
-        session: 'live',
-        sessionName: name,
-        minutes: T.mayaDetected,
-        drafts: sessionDrafts,
-        match: { personId: 'maya', confidence: 'likely' },
-        people: touchPerson(s.people, 'maya', name),
+        listening: true,
+        minutes: T.mariaInView,
+        inView: { name: 'Maria', match: 'sure' },
+        transcript: visitLines,
+        people: seen(s.people, 'Maria', T.mariaInView),
+        lastConversation: null,
         toast: null,
       };
+    case 'stopListening': {
+      // As the server does when streaming stops: keep only the wearer's and registered people's
+      // words; nothing at all if no registered person took part; Gemini updates their profiles.
+      const people = [...new Set(s.transcript.map((l) => l.speaker).filter((x): x is string => !!x && x !== 'me'))];
+      const hidden = s.transcript.filter((l) => l.hidden).length;
+      const kept = people.length ? s.transcript.length - hidden : 0;
+      const minutes = Math.max(s.minutes, T.conversationEnd);
+      const updated = s.people.map((p) => {
+        if (!people.includes(p.name)) return p;
+        const learned = p.name === 'Maria' ? mariaAfterVisit : { recall: `You talked with ${p.name} today.`, facts: p.facts, followUps: p.followUps };
+        return { ...p, ...learned, visits: [{ at: 'Today', recall: learned.recall }, ...p.visits].slice(0, 5) };
+      });
+      return {
+        ...s,
+        listening: false,
+        inView: null,
+        transcript: [],
+        minutes,
+        people: updated,
+        lastConversation: { people, kept, hidden, minutes },
+        toast: people.length
+          ? { title: 'Conversation saved as text', sub: `${people.join(', ')} · no audio kept` }
+          : { title: 'Nothing was kept', sub: 'Nobody registered took part.' },
+      };
     }
-    case 'togglePause':
-      return { ...s, session: s.session === 'paused' ? 'live' : 'paused' };
-    case 'endSession': {
-      const mins = Math.max(s.minutes, T.sessionEnd);
-      const maya = s.people.find((p) => p.id === 'maya');
-      const people = maya
-        ? s.people.map((p) =>
-            p.id === 'maya' && !p.conversations.some((c) => c.id === 'c-maya-bn')
-              ? {
-                  ...p,
-                  notes: p.leftOff ? [p.leftOff, ...p.notes] : p.notes,
-                  leftOff: { when: `${TODAY} · ${s.sessionName ?? 'Session'}`, text: 'Asked again for your portfolio.' },
-                  conversations: [{ id: 'c-maya-bn', event: s.sessionName ?? 'Session', when: TODAY, mins: 14 }, ...p.conversations],
-                }
-              : p,
-          )
-        : s.people;
-      return { ...s, session: 'ended', minutes: mins, lastSessionMinutes: mins, match: null, people, toast: null };
+
+    case 'simFace': {
+      const listening = s.listening ? {} : { listening: true, minutes: T.mariaInView };
+      const next: State = { ...s, ...listening, inView: { name: a.name, match: a.match } };
+      if (a.match !== 'sure') return next;
+      const line: Line = { speaker: a.name, text: 'Hello! It’s good to see you.' };
+      return { ...next, people: seen(next.people, a.name, next.minutes), transcript: [...next.transcript, line] };
     }
+    case 'confirmFace':
+      if (!s.inView) return s;
+      return { ...s, inView: { ...s.inView, match: 'sure' }, people: seen(s.people, s.inView.name, s.minutes) };
+    case 'rejectFace':
+      return { ...s, inView: null, toast: { title: 'Okay — no name shown', sub: 'Nothing was added to their profile.' } };
+    case 'simUnregistered':
+      return { ...s, transcript: [...s.transcript, { speaker: null, text: '', hidden: true }] };
+
+    case 'register': {
+      const name = a.name.trim();
+      const person: Person = {
+        name, relationship: a.relationship.trim(), photos: a.photos,
+        recall: '', facts: [], followUps: [], lastSeen: null, visits: [],
+      };
+      return {
+        ...s,
+        people: [person, ...s.people.filter((p) => p.name !== name)],
+        activePerson: name,
+        toast: { title: `${name} is registered`, sub: 'Recognised from now on.', initials: name.slice(0, 1).toUpperCase() },
+      };
+    }
+    case 'forget':
+      return {
+        ...s,
+        people: s.people.filter((p) => p.name !== a.name),
+        inView: s.inView?.name === a.name ? null : s.inView,
+        toast: { title: `Forgot ${a.name}`, sub: 'Face data and profile deleted on the server.' },
+      };
+    case 'forgetAll':
+      return { ...s, people: [], inView: null, toast: { title: 'Everyone forgotten', sub: 'All face data and profiles deleted.' } };
+    case 'openPerson':
+      return { ...s, activePerson: a.name };
     case 'setLock':
       return { ...s, lockMode: a.mode };
-    case 'simMatch': {
-      const live = s.session === 'idle' || s.session === 'ended'
-        ? { session: 'live' as const, sessionName: s.sessionName ?? CALENDAR_EVENT.name, minutes: T.mayaDetected }
-        : {};
-      const next = { ...s, ...live, match: { personId: a.personId, confidence: a.confidence } };
-      // Only a confident match counts as "seen today"; unsure ones change nothing until confirmed.
-      return a.confidence === 'likely' ? { ...next, people: touchPerson(next.people, a.personId, next.sessionName ?? 'Session') } : next;
-    }
-    case 'confirmMatch':
-      if (!s.match) return s;
-      return {
-        ...s,
-        match: { ...s.match, confidence: 'likely' },
-        people: touchPerson(s.people, s.match.personId, s.sessionName ?? 'Session'),
-      };
-    case 'rejectMatch':
-      return {
-        ...s,
-        match: null,
-        toast: { title: 'Got it — not a match', sub: 'Nothing was added to their profile.' },
-      };
-    case 'simNewVoice': {
-      const n = s.drafts.length + 1;
-      const d: Draft = { id: `d-sim-${Date.now()}`, heardMin: s.minutes, name: '', cue: '' };
-      return { ...s, drafts: [...s.drafts, d], toast: { title: `New voice heard`, sub: `${n} not saved · expires in 7 days` } };
-    }
-    case 'openDraft':
-      return { ...s, activeDraftId: a.id };
-    case 'saveDraft': {
-      const name = a.name.trim();
-      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || a.id;
-      const sessionName = s.sessionName ?? 'Session';
-      const person: Person = {
-        id,
-        name,
-        initials: initialsOf(name),
-        role: a.cue.trim() || undefined,
-        firstMet: { event: sessionName, date: TODAY },
-        lastSeen: { event: sessionName, date: TODAY },
-        leftOff: a.cue.trim() ? { when: `${TODAY} · ${sessionName}`, text: a.cue.trim() } : undefined,
-        notes: [],
-        conversations: [{ id: `c-${id}`, event: sessionName, when: TODAY, mins: 4 }],
-        savedTonight: true,
-      };
-      return {
-        ...s,
-        minutes: Math.max(s.minutes, T.priyaSaved),
-        drafts: s.drafts.filter((d) => d.id !== a.id),
-        activeDraftId: null,
-        people: [person, ...s.people.filter((p) => p.id !== id)],
-        toast: { title: `${name} saved`, sub: 'Audio deleted · voiceprint on this iPhone', initials: person.initials },
-      };
-    }
-    case 'discardDraft':
-      return {
-        ...s,
-        drafts: s.drafts.filter((d) => d.id !== a.id),
-        activeDraftId: null,
-        toast: { title: 'Voice discarded', sub: 'The audio was deleted.' },
-      };
-    case 'declineLatest': {
-      const latest = [...s.drafts].sort((x, y) => y.heardMin - x.heardMin)[0];
-      return {
-        ...s,
-        drafts: latest ? s.drafts.filter((d) => d.id !== latest.id) : s.drafts,
-        toast: latest
-          ? { title: 'Their voice was discarded', sub: 'Nothing about them was saved.' }
-          : { title: 'Nothing to discard', sub: 'No unsaved voices from this session.' },
-      };
-    }
-    case 'addTask':
-      return s.tasks.includes(a.id) ? s : { ...s, tasks: [...s.tasks, a.id], toast: { title: 'Added to Familiar tasks' } };
-    case 'addNote':
-      return {
-        ...s,
-        people: s.people.map((p) =>
-          p.id === a.personId ? { ...p, notes: [{ when: `${TODAY} · ${s.sessionName ?? 'Note'}`, text: a.text }, ...p.notes] } : p,
-        ),
-        toast: { title: 'Note added' },
-      };
-    case 'openPerson':
-      return { ...s, activePersonId: a.id };
-    case 'deleteConversation':
-      return {
-        ...s,
-        people: s.people.map((p) =>
-          p.id === a.personId ? { ...p, conversations: p.conversations.filter((c) => c.id !== a.conversationId) } : p,
-        ),
-        toast: { title: 'Conversation deleted' },
-      };
-    case 'forget': {
-      const p = s.people.find((x) => x.id === a.personId);
-      return {
-        ...s,
-        people: s.people.filter((x) => x.id !== a.personId),
-        match: s.match?.personId === a.personId ? null : s.match,
-        toast: { title: `${p?.name.split(' ')[0] ?? 'They'} forgotten`, sub: 'Notes and voiceprint deleted.' },
-      };
-    }
-    case 'forgetAll':
-      return { ...s, people: [], drafts: [], match: null, toast: { title: 'Everyone forgotten', sub: 'All notes and voiceprints deleted.' } };
+    case 'setAppearance':
+      return { ...s, appearance: a.appearance };
     case 'toast':
       return { ...s, toast: a.toast };
     case 'reset':
@@ -253,14 +185,11 @@ export function reducer(s: State, a: Action): State {
 
 // ---------- Derived helpers ----------
 export const selectors = {
-  person: (s: State, id: string | undefined | null) => s.people.find((p) => p.id === id),
-  matched: (s: State) => (s.match ? s.people.find((p) => p.id === s.match!.personId) : undefined),
-  activeDraft: (s: State) =>
-    s.drafts.find((d) => d.id === s.activeDraftId) ??
-    [...s.drafts].sort((a, b) => Number(!!b.quote) - Number(!!a.quote) || b.heardMin - a.heardMin)[0],
-  visibleFollowUps: (s: State) => followUps.filter((f) => !f.needs || s.people.some((p) => p.id === f.needs)),
+  person: (s: State, name: string | null | undefined) => s.people.find((p) => p.name === name),
+  inViewPerson: (s: State) => (s.inView ? s.people.find((p) => p.name === s.inView!.name) : undefined),
   recentPeople: (s: State) =>
-    [...s.people].sort((a, b) => Number(b.lastSeen.date === TODAY) - Number(a.lastSeen.date === TODAY)),
+    [...s.people].sort((a, b) => Number((b.lastSeen ?? '').startsWith('Today')) - Number((a.lastSeen ?? '').startsWith('Today'))),
+  ready: (s: State) => !!s.server && !!s.band && !!s.camera,
 };
 
 // ---------- Context ----------

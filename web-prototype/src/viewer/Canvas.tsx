@@ -55,16 +55,16 @@ export function Canvas({ onOpen }: { onOpen: (b: Board) => void }) {
             <h2 className="canvas-row-title">{row.title}</h2>
             <div className="canvas-boards">
               {row.boards.map((b) => <BoardView key={b.id} board={b} onOpen={onOpen} theme={theme} />)}
-              {row.title.startsWith('Account') && (
+              {row.title.startsWith('Setup') && (
                 <aside className="demo-note">
                   <strong>Demo path</strong> — press <em>Open in prototype</em> on 05 · Now — ready.
                   <ol>
-                    <li>Start session → the Lock Screen appears (wrist tap).</li>
-                    <li>Tap the Familiar card → Recognized.</li>
-                    <li>‹ Now → Review the new voice → tick consent → Save Priya.</li>
-                    <li>End session → Recap → tap Maya → Profile.</li>
+                    <li>Listen → the Lock Screen shows someone you know is here.</li>
+                    <li>Tap it → “This is Maria, your daughter” (spoken aloud).</li>
+                    <li>‹ Now → the live transcript hides anyone not registered.</li>
+                    <li>Stop listening → what to remember → Maria’s profile.</li>
                   </ol>
-                  Privacy beat: Privacy tab → Show someone what Familiar does.
+                  Consent beat: People → Register a person (name, relationship, photos, their OK).
                 </aside>
               )}
             </div>
