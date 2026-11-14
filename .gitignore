@@ -1,1 +1,20 @@
 .DS_Store
+vexo-open-kit/
+.env
+
+# iOS
+ios/VexoBand/.build/
+ios/build/
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# server
+server/.pairing-code
+conversations/
+__pycache__/
+
+# faces
+server/models/
+server/people.json
+server/profiles.json
