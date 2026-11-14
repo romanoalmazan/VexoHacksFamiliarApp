@@ -3,8 +3,9 @@
 > Living document. Everything here can change. Claude updates it as we build: phases get
 > checked off, decisions get logged, and pivots are recorded in the changelog.
 >
-> **Last updated:** 2026-11-14 (1:45 PT) · **Current phase:** 4 + G (the real glasses' camera
-> works in the app on the iPhone; faces are not yet tied to a conversation) · **Hard stop:** submit before 6:00 PM PT today
+> **Last updated:** 2026-11-14 (2:30 PT) · **Current phase:** 5 (the whole loop runs on real
+> hardware; voice registration and the registered-only rule are untested on real speech;
+> the app still has test screens, not the design) · **Hard stop:** submit before 6:00 PM PT today
 
 ---
 
@@ -75,8 +76,10 @@ Riskiest assumption first: **can a wrist mic pick up and separate the *other* pe
       for the person. Keys are in `.env`; Gemini model in use: `gemini-4-argon`.
 
 ### Phase 3: Recognise returning people [Track B] (changed by the pivot, decision 12)
-- [ ] Mark the wearer ("Me") for the session so they're never made into a profile. Simplest
-      version: the wearer speaks first after tapping Start, and that speaker label is "Me".
+- [x] The wearer registers their own voice once (Register my voice: 12 seconds of
+      reading into the band). In a conversation, the voice that sounds like it is "Me",
+      whoever speaks first (`server/voice.py`). With no voice registered, the first voice
+      is "Me". **Checked with computer voices only; thresholds are a first guess.**
 - [ ] Recognise a returning person **by face** (Phase G). Voice fingerprints are dropped
       for the hackathon.
 - [x] Link face to words (`server/who.py`): the first voice is "Me"; another voice that
@@ -156,6 +159,7 @@ Items 1–3 are the product. Items 4–5 make it better. Nobody leaves 1–3 to 
 | 13 | Face matching runs on the server, and the iPhone camera is the first camera | **Decided** (2026-11-14, built) | Same server and pairing as the audio. The phone camera gives a working face feature within the hour and a fallback if the glasses don't connect. |
 | 14 | Only enrolled faces are matched; nothing is kept for strangers | **Decided** (2026-11-14, built) | Frames are compared and thrown away. A new person is saved only when the user or a family member adds them. See S5. |
 | 15 | Only registered people are recorded | **Decided** (2026-11-14, built) | The user's call, for the dementia use. A person is registered in the app (name, relationship, a confirmed yes from them or family, photos). Only the wearer's words and recognised registered people's words are shown, saved or sent to Gemini. Anyone else's are withheld and dropped; a conversation with no registered person leaves nothing. Deepgram still hears the room to make the text. |
+| 16 | The wearer registers their own voice | **Decided** (2026-11-14, built) | Replaces "the first voice is the wearer". A voice model on the server (sherpa-onnx, WeSpeaker CAM++) compares each voice in a conversation with the registered one. Brings back a voice fingerprint, but only for the wearer, who registers themselves. |
 
 ---
 
@@ -328,7 +332,7 @@ confirms. Keep the blue light visible. Judges will likely ask about this.
   narrow (now the whole picture). Still seen: Deepgram splits and merges voices at the
   wrist, so some lines stay "Speaker N"; Justin got no profile because his voice ended
   the conversation labelled as Sasha. The fix is untested on real speech.
-- **2026-11-14 (2:35 PT): Only registered people are recorded (decision 15).** App: a
+- **2026-11-14 (2:15 PT): Only registered people are recorded (decision 15).** App: a
   Register a person screen (name, relationship, "They agreed to this", photos from the
   camera or library), reachable from the main screen and from People. Server: refuses to
   register without the yes; withholds unregistered voices' words from the phone, the log
@@ -337,3 +341,14 @@ confirms. Keep the blue light visible. Judges will likely ask about this.
   in the Simulator. **Not yet tried in a real conversation.** Known gap: the first voice
   after Listen is taken as the wearer and kept, whoever it is. The earlier test file
   `conversations/2026-11-14_14-02-06.json` predates this and still holds unregistered lines.
+- **2026-11-14 (2:30 PT): The wearer registers their own voice (decision 16).** App:
+  Register my voice screen (read a passage for 12 seconds into the band; forget my voice).
+  Server: `voice.py` keeps a description of the voice, and in a conversation compares each
+  voice with it once it has said 2.5 seconds, again every 5 seconds. Until the wearer is
+  found their words are withheld like anyone unregistered. 19 server tests pass; the real
+  audio path was checked with two computer voices (same voice 0.82–0.92, other 0.55–0.63,
+  so the bar is 0.55 and the best must lead by 0.05). **Not tried with a real voice on
+  the band: the bar may need moving. The server log prints each score.**
+- **2026-11-14 (2:35 PT):** `PROJECT_OVERVIEW.md` now has a Features section listing
+  everything built, grouped by listening, the wearer's voice, recognising people, naming
+  voices, remembering, the recall moment, and the server. Pushed to GitHub.

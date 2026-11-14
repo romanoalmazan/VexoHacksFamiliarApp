@@ -34,13 +34,16 @@ class DiarizedSpeech(speech.DeepgramSpeech):
     """on_segments(pieces, final) is called from another thread while people speak.
     final=False is a guess that may still change; final=True is settled."""
 
-    def __init__(self, on_segments, **options):
+    def __init__(self, on_segments, on_words=None, **options):
         super().__init__(diarize="true", **options)
         self.on_segments = on_segments
+        self.on_words = on_words      # settled words with their times, for telling voices apart
 
     def _message(self, message: dict) -> None:
         if message.get("type") == "Results":
             best = (message.get("channel", {}).get("alternatives") or [{}])[0]
+            if self.on_words and message.get("is_final") and isinstance(best.get("words"), list):
+                self.on_words(best["words"])
             pieces = segments(best.get("words"))
             if not pieces:                                   # no word list: fall back to the plain text
                 text = str(best.get("transcript") or "").strip()

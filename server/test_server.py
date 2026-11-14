@@ -81,6 +81,11 @@ class WhichVoiceIsWho(unittest.TestCase):
 
 
 class EndToEnd(unittest.TestCase):
+    def setUp(self):
+        patch = mock.patch.object(server, "VOICE", None)      # as if no voice is registered on this laptop
+        patch.start()
+        self.addCleanup(patch.stop)
+
     def run_phone(self, code_sent, packets=120):
         async def go():
             got = []
@@ -105,7 +110,7 @@ class EndToEnd(unittest.TestCase):
         with MockDeepgram() as deepgram, mock.patch.object(speech.DeepgramSpeech, "URL", deepgram.url), \
                 mock.patch.dict(os.environ, {"DEEPGRAM_API_KEY": "made-up-key"}), mock.patch.object(server, "save", return_value=None) as saved:
             got = self.run_phone("123456")
-            self.assertEqual(got[0], {"type": "ready"})
+            self.assertEqual(got[0], {"type": "ready", "knows_wearer": False})
             # The pretend Deepgram gives no speaker numbers, so nobody is known: words withheld.
             self.assertTrue(all(m["type"] == "transcript" and m["segments"][0] == {"speaker": None, "text": "", "hidden": True} for m in got[1:]))
             self.assertIn("diarize=true", deepgram.requests[0]["path"])
@@ -131,8 +136,8 @@ class FakeEars:
     error = None
     script = [(0, "Hello Maria."), (1, "Hello dad."), (2, "Tea, anyone?"), (1, "I brought the photos.")]
 
-    def __init__(self, on_segments):
-        self.on_segments, self.fed = on_segments, 0
+    def __init__(self, on_segments, on_words=None):
+        self.on_segments, self.on_words, self.fed = on_segments, on_words, 0
 
     def start(self):
         return self
@@ -195,12 +200,132 @@ class VoicesGetNames(unittest.TestCase):
             self.assertIsNone(server.save(0.0, lines, who))
         self.assertFalse((Path(self.folder.name) / "none").exists())
 
+    def test_the_registered_voice_is_the_wearer_even_speaking_second(self):
+        class Ears(FakeEars):
+            script = [(1, "Hello dad, how are you today?"), (0, "Hello Maria, I am well."), (1, "I brought the photos."), (0, "Lovely.")]
+
+            def feed(self, packet):
+                if self.fed < len(self.script):
+                    speaker = self.script[self.fed][0]
+                    self.on_words([{"speaker": speaker, "start": self.fed * 3.0, "end": self.fed * 3.0 + 3.0}])
+                super().feed(packet)
+
+        class KnownVoice:
+            registered = True
+
+            def like_me(self, packets):
+                return 0.8 if packets and packets[0] == b"me" else 0.1
+
+        async def go():
+            got = []
+            async with websockets.serve(lambda phone: server.stream(phone, "123456"), "127.0.0.1", 0) as listening:
+                port = listening.sockets[0].getsockname()[1]
+                async with websockets.connect("ws://127.0.0.1:%d" % port, additional_headers={"Authorization": "Bearer 123456"}) as phone:
+                    got.append(json.loads(await asyncio.wait_for(phone.recv(), 5)))
+                    for packet in (b"maria", b"me", b"maria", b"me"):
+                        await phone.send(packet * 150 if False else packet)
+                        await asyncio.sleep(0.15)
+                    try:
+                        while True:
+                            got.append(json.loads(await asyncio.wait_for(phone.recv(), 1)))
+                    except asyncio.TimeoutError:
+                        pass
+            await asyncio.sleep(0.3)
+            return got
+        # One packet stands for three seconds here, so each voice's "sound" is its own packet.
+        import voice
+        server.SIGHT.saw([{"name": "Maria", "match": "sure"}])
+        try:
+            with mock.patch.object(server, "DiarizedSpeech", Ears), mock.patch.object(server, "SAVE_TO", Path(self.folder.name)), \
+                    mock.patch.object(server, "remember"), mock.patch.object(server, "VOICE", KnownVoice()), \
+                    mock.patch.object(voice, "PACKET", 3.0), mock.patch.object(server.SIGHT, "one", lambda: "Maria"):
+                got = asyncio.run(go())
+        finally:
+            server.SIGHT.clear()
+        self.assertEqual(got[0], {"type": "ready", "knows_wearer": True})
+        self.assertEqual([m for m in got if m["type"] == "speakers"][-1], {"type": "speakers", "me": 0, "names": {"1": "Maria"}})
+        saved = json.loads(next(Path(self.folder.name).glob("*.json")).read_text())
+        self.assertEqual([(line["person"], line["text"]) for line in saved["segments"]],
+                         [("Maria", "Hello dad, how are you today?"), ("Me", "Hello Maria, I am well."), ("Maria", "I brought the photos."), ("Me", "Lovely.")])
+
     def setUp(self):
         import tempfile
         self.folder = tempfile.TemporaryDirectory()
+        patch = mock.patch.object(server, "VOICE", None)
+        patch.start()
+        self.addCleanup(patch.stop)
 
     def tearDown(self):
         self.folder.cleanup()
+
+
+class MyVoice(unittest.TestCase):
+    def test_which_voice_is_mine(self):
+        import voice
+
+        class Known:
+            def like_me(self, packets):
+                return {b"a": 0.2, b"b": 0.7, b"c": 0.68}[packets[-1]]
+        ears = voice.Listening(Known())
+        for packet in (b"a",) * 200 + (b"b",) * 200 + (b"c",) * 200:
+            ears.packet(packet)
+        word = lambda speaker, start, end: {"speaker": speaker, "start": start, "end": end}
+        self.assertEqual(ears.words([word(0, 0.0, 1.0), {"speaker": None}, "junk"]), [])       # too little said
+        self.assertEqual(ears.words([word(0, 1.0, 3.9), word(1, 4.1, 7.9)]), [0, 1])
+        self.assertEqual(ears.words([word(0, 3.9, 3.95)]), [])                                   # just compared
+        self.assertAlmostEqual(ears.compare(0), 0.2)
+        self.assertIsNone(ears.me())                                                            # nobody sounds like the wearer yet
+        self.assertAlmostEqual(ears.compare(1), 0.7)
+        self.assertEqual(ears.me(), 1)
+        ears.words([word(2, 8.1, 11.9)])
+        ears.compare(2)
+        self.assertIsNone(ears.me())                                                            # two voices equally alike: no guess
+
+    def test_set_me_takes_the_name_off_the_wearer(self):
+        sight = Sight()
+        who = Who(sight, first_voice_is_me=False)
+        sight.saw([{"name": "Maria", "match": "sure"}])
+        self.assertTrue(who.heard([{"speaker": 0, "text": "hello there how are you"}]))        # not known to be the wearer yet
+        self.assertEqual((who.me, who.person(0)), (None, "Maria"))
+        self.assertTrue(who.set_me(0))
+        self.assertFalse(who.set_me(0))
+        self.assertEqual((who.person(0), who.names), ("Me", {}))
+
+    def test_registering_over_the_wire(self):
+        class Fake:
+            registered = False
+
+            def register(self, packets):
+                if len(packets) < 3:
+                    raise server.VoiceError("That was only 0 seconds. Read for at least 6.")
+                self.registered = True
+                return {"registered": True, "seconds": 9.0}
+
+            def forget(self):
+                self.registered = False
+
+        async def go(code):
+            got = []
+            async with websockets.serve(lambda phone: server.route(phone, "123456"), "127.0.0.1", 0) as listening:
+                port = listening.sockets[0].getsockname()[1]
+                async with websockets.connect("ws://127.0.0.1:%d/voice" % port, additional_headers={"Authorization": "Bearer " + code}) as phone:
+                    try:
+                        got.append(json.loads(await asyncio.wait_for(phone.recv(), 5)))
+                        for message in ('{"type": "done"}', b"x", b"x", b"x", '{"type": "done"}', '{"type": "forget"}', "junk"):
+                            await phone.send(message)
+                            if isinstance(message, str):
+                                got.append(json.loads(await asyncio.wait_for(phone.recv(), 5)))
+                    except websockets.ConnectionClosed as closed:
+                        got.append(closed.rcvd.code if closed.rcvd else None)
+            return got
+        with mock.patch.object(server, "VOICE", Fake()):
+            got = asyncio.run(go("123456"))
+            self.assertEqual(asyncio.run(go("000000")), [4401])
+        self.assertEqual(got[0], {"type": "ready", "registered": False})
+        self.assertEqual(got[1]["type"], "error")
+        self.assertEqual(got[2], {"type": "voice", "registered": True, "seconds": 9.0})
+        self.assertEqual(got[3], {"type": "voice", "registered": False})
+        self.assertEqual(got[4]["type"], "error")
 
 
 class Remembering(unittest.TestCase):
