@@ -18,3 +18,4 @@ __pycache__/
 server/models/
 server/people.json
 server/profiles.json
+server/me.json

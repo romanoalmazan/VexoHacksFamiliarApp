@@ -12,6 +12,8 @@ struct BandView: View {
     @AppStorage("pairingCode") private var pairingCode = ""
     @AppStorage("useGlasses") private var useGlasses = false
     @State private var registering = false
+    @State private var registeringVoice = false
+    @AppStorage("voiceRegistered") private var voiceRegistered = false
 
     #if targetEnvironment(simulator)
     @State private var pretend = true           // the Simulator has no Bluetooth
@@ -88,7 +90,7 @@ struct BandView: View {
                         Text("Live transcript")
                     } footer: {
                         Text(band.micOn
-                             ? "The band's light is solid blue: the microphone is on. What it hears goes to your server and from there to Deepgram, a company. Only the wearer's words and registered people's are kept. Tell the people near you. Speak first: the first voice is taken to be yours."
+                             ? "The band's light is solid blue: the microphone is on. What it hears goes to your server and from there to Deepgram, a company. Only the wearer's words and registered people's are kept. Tell the people near you." + (voiceRegistered ? "" : " Speak first: with no voice registered, the first voice is taken to be yours.")
                              : "Start the server on the laptop (python3 server/server.py) and copy its address and pairing code here. With no server address, Listen only counts the sound.")
                     }
 
@@ -108,6 +110,17 @@ struct BandView: View {
 
                 Section {
                     Button {
+                        registeringVoice = true
+                    } label: {
+                        HStack {
+                            Label("Register my voice", systemImage: "person.wave.2")
+                            Spacer()
+                            if voiceRegistered {
+                                Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                            }
+                        }
+                    }
+                    Button {
                         registering = true
                     } label: {
                         Label("Register a person", systemImage: "person.crop.circle.badge.plus")
@@ -118,7 +131,7 @@ struct BandView: View {
                         Label("People & faces", systemImage: "person.crop.rectangle.stack")
                     }
                 } footer: {
-                    Text("Only registered people are recognised, and only conversations with them are recorded. Everyone else's words are left out.")
+                    Text("Register your own voice so Familiar knows which voice is yours. Only registered people are recognised, and only conversations with them are recorded.")
                 }
 
                 if !band.log.isEmpty {
@@ -137,6 +150,7 @@ struct BandView: View {
             }
             .navigationTitle("Familiar")
             .sheet(isPresented: $registering) { RegisterView(watch: watch) }
+            .sheet(isPresented: $registeringVoice) { RegisterVoiceView(band: band) }
             .animation(.default, value: band.phase)
         }
     }

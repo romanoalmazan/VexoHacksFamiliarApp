@@ -19,6 +19,19 @@ Camera pictures are compared and thrown away. Per enrolled person the server kee
 name, a relationship and numbers describing the face (`server/people.json`, not in git).
 Only enrol people who agreed. Swipe a person in the app to forget them.
 
+## Voices (server setup)
+
+The wearer registers their own voice in the app (Register my voice), so the server knows
+which voice is theirs. Once per laptop:
+
+```
+python3 -m pip install --user sherpa-onnx
+curl -L -o server/models/voice.onnx "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/wespeaker_en_voxceleb_CAM%2B%2B.onnx"
+brew install ffmpeg
+```
+
+What is kept is a description of the voice (`server/me.json`, not in git), never sound.
+
 ## Meta glasses
 
 Uses Meta's Wearables Device Access Toolkit 1.0.1. On the demo iPhone:

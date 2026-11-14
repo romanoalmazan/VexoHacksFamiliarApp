@@ -24,6 +24,13 @@
 # registered person in it leaves nothing behind. (Deepgram still hears the whole room to
 # make the text: that cannot be avoided with one microphone.)
 #
+# The wearer's own voice is registered on a connection at the path /voice (same code):
+#   phone -> server : the band's sound packets while the wearer reads, then {"type": "done"}
+#                     {"type": "forget"}
+#   server -> phone : {"type": "ready", "registered": true|false}
+#                     {"type": "voice", "registered": true, "seconds": 9.8}  ·  {"type": "error", ...}
+# With a registered voice, the wearer is whoever sounds like it; otherwise the first voice.
+#
 # Faces use a second connection to the same port, at the path /faces (same pairing code):
 #   phone -> server : a binary message = one JPEG camera picture: who is in it?
 #                     {"type": "enrol", "name": "...", "relationship": "...", "consent": true, "jpeg": "<base64>"}
@@ -51,6 +58,12 @@ import websockets
 from diarized import DiarizedSpeech, speech
 from profiles import Profiles, ProfilesError, env as setting
 from who import Sight, Who
+
+try:
+    from voice import Listening, Voice, VoiceError
+    VOICE = Voice()                                # the wearer's registered voice
+except ImportError as missing:                     # no numpy: the server still runs, first voice = wearer
+    VOICE, VoiceError = None, Exception
 
 HERE = Path(__file__).resolve().parent
 CODE_FILE = HERE / ".pairing-code"                 # our own code, not a service key; git-ignored
@@ -116,12 +129,21 @@ async def stream(phone, code: str) -> None:
     loop = asyncio.get_running_loop()
     outbox: asyncio.Queue = asyncio.Queue()
     started, lines = time.time(), []
-    who = Who(SIGHT)
+    # With a registered voice, the wearer is found by how they sound. Without one, the
+    # first voice is taken to be the wearer.
+    ears_for_me = Listening(VOICE) if VOICE is not None and VOICE.registered else None
+    who = Who(SIGHT, first_voice_is_me=ears_for_me is None)
 
     def shown(pieces):
         """Words of the wearer and of registered people as they are; anyone else's withheld."""
         return [piece if who.person(piece["speaker"]) else {"speaker": piece["speaker"], "text": "", "hidden": True}
                 for piece in pieces]
+
+    def tell_all():
+        # A voice just got a name (or turned out to be the wearer): what it said before can be shown now.
+        loop.call_soon_threadsafe(outbox.put_nowait, who.message())
+        loop.call_soon_threadsafe(outbox.put_nowait, {"type": "all", "final": False, "segments": shown(
+            [{"speaker": line["speaker"], "text": line["text"]} for line in list(lines)])})
 
     def on_segments(pieces, final):                 # called on the Deepgram client's thread
         changed = False
@@ -131,14 +153,25 @@ async def stream(phone, code: str) -> None:
             changed = who.heard(pieces)
         loop.call_soon_threadsafe(outbox.put_nowait, {"type": "transcript", "final": final, "segments": shown(pieces)})
         if changed:
-            # A voice just got a name: what it said before can be shown now.
-            loop.call_soon_threadsafe(outbox.put_nowait, who.message())
-            loop.call_soon_threadsafe(outbox.put_nowait, {"type": "all", "final": False, "segments": shown(
-                [{"speaker": line["speaker"], "text": line["text"]} for line in lines])})
+            tell_all()
+
+    def is_it_me(speaker):                          # on a helper thread: decoding sound takes a moment
+        try:
+            score = ears_for_me.compare(speaker)
+        except VoiceError as problem:
+            print("  (voice check failed: %s)" % problem)
+            return
+        print("  (voice check: speaker %s sounds %.2f like the wearer)" % (speaker, score))
+        if who.set_me(ears_for_me.me()):
+            tell_all()
+
+    def on_words(words):                            # called on the Deepgram client's thread
+        for speaker in ears_for_me.words(words):
+            loop.call_soon_threadsafe(loop.run_in_executor, None, is_it_me, speaker)
 
     try:
         # start() blocks while it connects, so it runs on a helper thread.
-        ears = await loop.run_in_executor(None, lambda: DiarizedSpeech(on_segments).start())
+        ears = await loop.run_in_executor(None, lambda: DiarizedSpeech(on_segments, on_words if ears_for_me else None).start())
     except speech.VexoError as problem:
         # The kit's sentences say what to do and never contain the key.
         print("Cannot start: %s" % problem)
@@ -146,8 +179,9 @@ async def stream(phone, code: str) -> None:
         await phone.close(1011, "speech engine not available")
         return
 
-    print("A phone is streaming. Text:")
-    await phone.send(json.dumps({"type": "ready"}))
+    print("A phone is streaming. %s Text:" % ("The wearer is found by their registered voice." if ears_for_me
+                                               else "No voice registered: the first voice is taken to be the wearer."))
+    await phone.send(json.dumps({"type": "ready", "knows_wearer": ears_for_me is not None}))
 
     async def to_phone():
         while True:
@@ -168,6 +202,8 @@ async def stream(phone, code: str) -> None:
         async for packet in phone:
             if isinstance(packet, (bytes, bytearray)) and 0 < len(packet) <= 4096:
                 ears.feed(bytes(packet))
+                if ears_for_me:
+                    ears_for_me.packet(bytes(packet))       # kept in memory for this conversation only
                 if ears.error:
                     await phone.send(json.dumps({"type": "error", "message": "Deepgram stopped listening. Start again."}))
                     break
@@ -262,9 +298,54 @@ async def faces(phone, code: str) -> None:
     print("The phone's camera disconnected.")
 
 
+async def my_voice(phone, code: str) -> None:
+    """The wearer registers their own voice: the band's sound packets while they read,
+    then {"type": "done"}. {"type": "forget"} deletes it."""
+    given = phone.request.headers.get("Authorization", "")
+    if not hmac.compare_digest(given.encode(), ("Bearer " + code).encode()):
+        await phone.close(4401, "wrong pairing code")
+        return
+    if VOICE is None:
+        await phone.send(json.dumps({"type": "error", "message": "The server cannot learn voices yet: see the README (Voices)."}))
+        await phone.close(1011, "voice engine not available")
+        return
+    loop = asyncio.get_running_loop()
+    packets = []
+    await phone.send(json.dumps({"type": "ready", "registered": VOICE.registered}))
+    try:
+        async for message in phone:
+            if isinstance(message, (bytes, bytearray)):
+                if 0 < len(message) <= 4096 and len(packets) < 50 * 60:      # a minute at most
+                    packets.append(bytes(message))
+                continue
+            try:
+                kind = json.loads(message).get("type")
+            except (ValueError, AttributeError):
+                kind = None
+            if kind == "done":
+                try:
+                    reply = dict(await loop.run_in_executor(None, VOICE.register, packets), type="voice")
+                    print("The wearer registered their voice (%.0f seconds of reading)." % reply["seconds"])
+                except VoiceError as problem:
+                    reply = {"type": "error", "message": str(problem)}
+                packets = []
+            elif kind == "forget":
+                VOICE.forget()
+                reply = {"type": "voice", "registered": False}
+                print("The wearer's voice was forgotten.")
+            else:
+                reply = {"type": "error", "message": "The server did not understand that message."}
+            await phone.send(json.dumps(reply))
+    except websockets.ConnectionClosed:
+        pass
+
+
 async def route(phone, code: str) -> None:
-    if phone.request.path.split("?")[0].rstrip("/") == "/faces":
+    path = phone.request.path.split("?")[0].rstrip("/")
+    if path == "/faces":
         await faces(phone, code)
+    elif path == "/voice":
+        await my_voice(phone, code)
     else:
         await stream(phone, code)
 
