@@ -56,7 +56,9 @@ person's name.
 ### Recognising people (the glasses)
 
 - **Register a person:** name, relationship, a confirmed yes from them or their family,
-  and photos from the camera or the photo library.
+  and photos of their face. Four ways to add a photo: what the glasses (or the live
+  preview) see now, a photo taken with the iPhone's camera, photos from the library
+  (up to five at once), or an image file from Files.
 - The camera sends about one picture a second; the server answers with the person, a
   "possible" match, or nobody. The match is strict, because a wrong name is worse than
   no name.

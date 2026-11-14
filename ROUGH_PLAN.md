@@ -352,3 +352,15 @@ confirms. Keep the blue light visible. Judges will likely ask about this.
 - **2026-11-14 (2:35 PT):** `PROJECT_OVERVIEW.md` now has a Features section listing
   everything built, grouped by listening, the wearer's voice, recognising people, naming
   voices, remembering, the recall moment, and the server. Pushed to GitHub.
+- **2026-11-14 (2:50 PT):** Register a person has more ways to add a photo: take one with
+  the iPhone's own camera screen (works when the glasses are the camera too), choose up
+  to five from the library at once, or upload an image file from Files. The live-picture
+  button stays. A line under the buttons says what is missing (name, the yes, or the
+  server). **Builds for the Simulator; not tried on an iPhone. The Simulator has no
+  camera, so the iPhone-camera button is untested.**
+- **2026-11-14 (3:05 PT):** The photo buttons on Register a person were reported as not
+  working on the iPhone. Not reproduced; the likely cause is that they were greyed out
+  until a name was typed and "They agreed to this" was on. Changed: the photo buttons are
+  always usable, photos gather as small pictures on the screen (each removable), and a
+  Register button sends them once the name, the yes and the server are there. **Installed
+  on the iPhone; not yet confirmed by the user.**

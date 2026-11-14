@@ -260,6 +260,10 @@ final class GlassesCamera {
         case .thermalCritical, .thermalEmergency:
             return "The glasses are too hot for the camera. Let them cool down."
         default:
+            // Seen on real glasses: they refuse to start ("Device unavailable") while not worn.
+            let wearables = Wearables.shared
+            let worn = wearables.devices.compactMap { wearables.deviceForIdentifier($0) }.contains { $0.donState == .donned }
+            if !worn { return "Put the glasses on. Their camera only starts while they are being worn. Then switch this off and on again." }
             return "\(problem.localizedDescription) (\(problem)). \(facts())"
         }
     }
