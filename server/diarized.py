@@ -32,22 +32,28 @@ def segments(words):
 
 class DiarizedSpeech(speech.DeepgramSpeech):
     """on_segments(pieces, final) is called from another thread while people speak.
-    final=False is a guess that may still change; final=True is settled."""
+    final=False is a guess that may still change; final=True is settled.
 
-    def __init__(self, on_segments, on_words=None, **options):
+    tell_apart(words, final), if given, turns Deepgram's words (each with its speaker
+    number and its times) into the pieces, in place of segments(): the server uses it to
+    find the wearer's voice by sound."""
+
+    def __init__(self, on_segments, tell_apart=None, **options):
         super().__init__(diarize="true", **options)
         self.on_segments = on_segments
-        self.on_words = on_words      # settled words with their times, for telling voices apart
+        self.tell_apart = tell_apart
 
     def _message(self, message: dict) -> None:
         if message.get("type") == "Results":
             best = (message.get("channel", {}).get("alternatives") or [{}])[0]
-            if self.on_words and message.get("is_final") and isinstance(best.get("words"), list):
-                self.on_words(best["words"])
-            pieces = segments(best.get("words"))
+            final = bool(message.get("is_final"))
+            if self.tell_apart and isinstance(best.get("words"), list):
+                pieces = self.tell_apart(best["words"], final)
+            else:
+                pieces = segments(best.get("words"))
             if not pieces:                                   # no word list: fall back to the plain text
                 text = str(best.get("transcript") or "").strip()
                 pieces = [{"speaker": None, "text": text}] if text else []
             if pieces:
-                self.on_segments(pieces, bool(message.get("is_final")))
+                self.on_segments(pieces, final)
         super()._message(message)

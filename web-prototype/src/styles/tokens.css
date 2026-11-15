@@ -1,0 +1,233 @@
+/* Familiar design tokens — v5, light + dark.
+   Palette by name:  Ghost white · Cool grey · Freezing blue
+   Light theme is the default (:root). Dark theme applies inside any [data-theme='dark'] element,
+   so the phone, a canvas board or the whole page can switch on its own. */
+
+:root, [data-theme='light'] {
+  color-scheme: light;
+
+  /* Named palette */
+  --ghost-white: #F8F8FF;
+  --cool-grey-100: #EEF0F5;
+  --cool-grey-200: #E1E4EC;
+  --cool-grey-400: #A6ADC2;
+  --cool-grey-500: #8C92AC;   /* the classic "cool grey" */
+  --cool-grey-700: #4C5468;
+  --cool-grey-900: #1E2330;
+  --freezing-blue-100: #E3F5FF;
+  --freezing-blue-300: #9EDCFF;
+  --freezing-blue-500: #3AAFF0;
+  --freezing-blue-700: #1673C2;
+
+  /* Accent — freezing blue */
+  --accent: #2799E8;
+  --accent-grad: linear-gradient(135deg, #63CBFF 0%, #2799E8 55%, #1673C2 100%);
+  --accent-grad-hover: linear-gradient(135deg, #4DBFFA 0%, #1D8AD8 55%, #1265B0 100%);
+  --accent-glow: 0 8px 22px rgba(39, 153, 232, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+  /* Surfaces — ghost white on cool grey */
+  --bg: #EEF0F5;
+  --bg-grad:
+    radial-gradient(90% 36% at 0% 0%, rgba(158, 220, 255, 0.30) 0%, rgba(158, 220, 255, 0) 100%),
+    radial-gradient(70% 30% at 100% 4%, rgba(166, 173, 194, 0.22) 0%, rgba(166, 173, 194, 0) 100%),
+    linear-gradient(180deg, #F4F5FA 0%, #E9ECF2 100%);
+  --surface: #F8F8FF;
+  --fill: rgba(76, 84, 104, 0.08);
+  --fill-strong: rgba(76, 84, 104, 0.14);
+  --hover: rgba(76, 84, 104, 0.05);
+  --tint: rgba(39, 153, 232, 0.10);
+  --tint-strong: rgba(39, 153, 232, 0.16);
+  --line: rgba(76, 84, 104, 0.14);
+  --track: rgba(76, 84, 104, 0.14);
+  --skeleton: rgba(76, 84, 104, 0.08);
+  --glass: rgba(248, 248, 255, 0.74);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --sheet-bg: rgba(248, 248, 255, 0.95);
+  --hud-bg: rgba(30, 35, 48, 0.90);
+  --hud-ink: #F8F8FF;
+  --hud-sub: rgba(248, 248, 255, 0.72);
+  --thumb-bg: #F8F8FF;
+  --disabled-bg: rgba(140, 146, 172, 0.30);
+  --disabled-ink: rgba(248, 248, 255, 0.95);
+  --switch-off: rgba(140, 146, 172, 0.30);
+
+  /* Ink — cool greys */
+  --ink: #1E2330;
+  --ink-2: #2E3445;
+  --muted: #4C5468;
+  --subtle: #737B92;
+  --outline: rgba(76, 84, 104, 0.30);
+
+  /* Interactive text & icons — deep freezing blue, 5:1 on ghost white */
+  --blue: #1673C2;
+  --blue-hover: #105FA3;
+  --blue-press: #0C4F89;
+  --blue-soft: rgba(39, 153, 232, 0.16);
+
+  /* Status */
+  --green: #2EA35A;
+  --green-ink: #1E7A42;
+  --orange: #E58A00;
+  --red: #E0364B;
+  --mint-tint: rgba(46, 163, 90, 0.13);
+  --amber-tint: rgba(229, 138, 0, 0.14);
+  --amber-ink: #8A5300;
+  --danger: #E0364B;
+  --danger-ink: #BE2238;
+  --danger-tint: rgba(224, 54, 75, 0.09);
+
+  /* Hero card — cool grey graphite "Live Activity" with an icy glow */
+  --navy: #2A3040;
+  --navy-grad: linear-gradient(160deg, #464E63 0%, #2C3242 50%, #1A1E29 100%);
+  --navy-line: rgba(248, 248, 255, 0.14);
+  --navy-ring: rgba(248, 248, 255, 0.22);
+  --navy-border: transparent;
+  --card-glow-1: rgba(99, 203, 255, 0.40);
+  --card-glow-2: rgba(158, 220, 255, 0.22);
+  --mint: #8FDFFF;          /* "talking now" on the graphite card */
+  --sky: #9EDCFF;
+  --sky-text: rgba(248, 248, 255, 0.72);
+  --ring-1: rgba(39, 153, 232, 0.28);
+  --ring-2: rgba(76, 84, 104, 0.10);
+
+  /* Components */
+  --tile-bg: linear-gradient(160deg, #63CBFF 0%, #2799E8 55%, #1673C2 100%);
+  --tile-ink: #FFFFFF;
+  --avatar-bg: linear-gradient(180deg, #A6ADC2 0%, #7C849C 100%);
+  --apple-bg: #000000;
+  --apple-ink: #FFFFFF;
+
+  /* Lock Screen — frosty wallpaper */
+  --lock-ink: #1E2330;
+  --lock-ring: rgba(255, 255, 255, 0.8);
+  --lock-wallpaper:
+    radial-gradient(120% 70% at 20% 0%, #FFFFFF 0%, rgba(255, 255, 255, 0) 60%),
+    radial-gradient(90% 60% at 100% 100%, rgba(99, 203, 255, 0.35) 0%, rgba(99, 203, 255, 0) 70%),
+    linear-gradient(180deg, #F2F4F9 0%, #D7DDE8 100%);
+  --frost-bg: rgba(248, 248, 255, 0.66);
+  --frost-ink: #1E2330;
+  --frost-sub: rgba(30, 35, 48, 0.68);
+  --frost-accent: #1673C2;
+  --frost-border: rgba(255, 255, 255, 0.8);
+
+  /* Hardware art */
+  --band-strap: #3A4050;
+  --band-body: #5E667C;
+  --band-face: #4C5468;
+
+  /* Radii */
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* Elevation */
+  --shadow-card: 0 1px 1px rgba(30, 35, 48, 0.04), 0 4px 14px rgba(30, 35, 48, 0.06);
+  --shadow-raised: 0 2px 6px rgba(30, 35, 48, 0.07), 0 12px 28px rgba(30, 35, 48, 0.10);
+  --shadow-float: 0 1px 2px rgba(30, 35, 48, 0.08), 0 16px 36px rgba(30, 35, 48, 0.18);
+  --shadow-navy: 0 14px 34px rgba(30, 35, 48, 0.30);
+  --shadow-blue: 0 8px 22px rgba(39, 153, 232, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+  /* Type */
+  --font-wordmark: 'Quicksand', 'SF Pro Rounded', ui-rounded, 'Helvetica Neue', Arial, sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', Inter, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur: 280ms;
+  --dur-slow: 480ms;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --accent: #3AAFF0;
+  --accent-grad: linear-gradient(135deg, #7AD6FF 0%, #3AAFF0 55%, #1E86D6 100%);
+  --accent-grad-hover: linear-gradient(135deg, #8EDCFF 0%, #4CB8F4 55%, #2A91DE 100%);
+  --accent-glow: 0 8px 24px rgba(58, 175, 240, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+
+  /* Surfaces — deep cool grey */
+  --bg: #15181F;
+  --bg-grad:
+    radial-gradient(90% 36% at 0% 0%, rgba(58, 175, 240, 0.12) 0%, rgba(58, 175, 240, 0) 100%),
+    radial-gradient(70% 30% at 100% 4%, rgba(140, 146, 172, 0.10) 0%, rgba(140, 146, 172, 0) 100%),
+    linear-gradient(180deg, #1B1F28 0%, #111319 100%);
+  --surface: #242936;
+  --fill: rgba(248, 248, 255, 0.08);
+  --fill-strong: rgba(248, 248, 255, 0.14);
+  --hover: rgba(248, 248, 255, 0.05);
+  --tint: rgba(122, 214, 255, 0.14);
+  --tint-strong: rgba(122, 214, 255, 0.22);
+  --line: rgba(248, 248, 255, 0.10);
+  --track: rgba(248, 248, 255, 0.14);
+  --skeleton: rgba(248, 248, 255, 0.08);
+  --glass: rgba(36, 41, 54, 0.72);
+  --glass-border: rgba(248, 248, 255, 0.10);
+  --sheet-bg: rgba(32, 36, 48, 0.96);
+  --hud-bg: rgba(248, 248, 255, 0.94);
+  --hud-ink: #1E2330;
+  --hud-sub: rgba(30, 35, 48, 0.68);
+  --thumb-bg: #3A4152;
+  --disabled-bg: rgba(248, 248, 255, 0.12);
+  --disabled-ink: rgba(248, 248, 255, 0.45);
+  --switch-off: rgba(248, 248, 255, 0.18);
+
+  --ink: #F8F8FF;
+  --ink-2: #E4E6EE;
+  --muted: #B4BACB;
+  --subtle: #8C92AC;
+  --outline: rgba(248, 248, 255, 0.26);
+
+  --blue: #7AD6FF;
+  --blue-hover: #9EE1FF;
+  --blue-press: #5CCAFF;
+  --blue-soft: rgba(122, 214, 255, 0.18);
+
+  --green: #4CD27E;
+  --green-ink: #74E39E;
+  --orange: #FFB04D;
+  --red: #FF6474;
+  --mint-tint: rgba(76, 210, 126, 0.16);
+  --amber-tint: rgba(255, 176, 77, 0.16);
+  --amber-ink: #FFC985;
+  --danger: #FF6474;
+  --danger-ink: #FF8794;
+  --danger-tint: rgba(255, 100, 116, 0.14);
+
+  --navy-grad: linear-gradient(160deg, #3A4256 0%, #2A3041 50%, #1D212D 100%);
+  --navy-border: rgba(248, 248, 255, 0.10);
+  --card-glow-1: rgba(99, 203, 255, 0.34);
+  --card-glow-2: rgba(158, 220, 255, 0.16);
+  --ring-1: rgba(122, 214, 255, 0.30);
+  --ring-2: rgba(248, 248, 255, 0.10);
+
+  --avatar-bg: linear-gradient(180deg, #5E667C 0%, #444B5E 100%);
+  --apple-bg: #F8F8FF;
+  --apple-ink: #000000;
+
+  --lock-ink: #F8F8FF;
+  --lock-ring: rgba(248, 248, 255, 0.09);
+  --lock-wallpaper:
+    radial-gradient(120% 60% at 20% 0%, rgba(99, 203, 255, 0.22) 0%, rgba(99, 203, 255, 0) 60%),
+    radial-gradient(90% 55% at 90% 100%, rgba(140, 146, 172, 0.28) 0%, rgba(140, 146, 172, 0) 70%),
+    linear-gradient(180deg, #232836 0%, #0D0F14 100%);
+  --frost-bg: rgba(248, 248, 255, 0.12);
+  --frost-ink: #F8F8FF;
+  --frost-sub: rgba(248, 248, 255, 0.70);
+  --frost-accent: #9EDCFF;
+  --frost-border: rgba(248, 248, 255, 0.14);
+
+  --band-strap: #232836;
+  --band-body: #464E63;
+  --band-face: #373E50;
+
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.22), 0 4px 14px rgba(0, 0, 0, 0.24);
+  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.26), 0 12px 28px rgba(0, 0, 0, 0.32);
+  --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.30), 0 16px 36px rgba(0, 0, 0, 0.42);
+  --shadow-navy: 0 14px 34px rgba(0, 0, 0, 0.42);
+  --shadow-blue: 0 8px 24px rgba(58, 175, 240, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}

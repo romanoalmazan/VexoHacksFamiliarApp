@@ -29,7 +29,9 @@
 #                     {"type": "forget"}
 #   server -> phone : {"type": "ready", "registered": true|false}
 #                     {"type": "voice", "registered": true, "seconds": 9.8}  ·  {"type": "error", ...}
-# With a registered voice, the wearer is whoever sounds like it; otherwise the first voice.
+# With a registered voice, the wearer's phrases are found by how they sound (voice.py), and
+# come to the phone under a speaker number of their own, -1. Otherwise the wearer is the
+# first voice.
 #
 # Faces use a second connection to the same port, at the path /faces (same pairing code):
 #   phone -> server : a binary message = one JPEG camera picture: who is in it?
@@ -55,15 +57,15 @@ from pathlib import Path
 
 import websockets
 
-from diarized import DiarizedSpeech, speech
+from diarized import DiarizedSpeech, segments, speech
 from profiles import Profiles, ProfilesError, env as setting
 from who import Sight, Who
 
 try:
-    from voice import Listening, Voice, VoiceError
+    from voice import ME, Listening, Voice, VoiceError
     VOICE = Voice()                                # the wearer's registered voice
 except ImportError as missing:                     # no numpy: the server still runs, first voice = wearer
-    VOICE, VoiceError = None, Exception
+    VOICE, VoiceError, ME = None, Exception, None
 
 HERE = Path(__file__).resolve().parent
 CODE_FILE = HERE / ".pairing-code"                 # our own code, not a service key; git-ignored
@@ -96,7 +98,8 @@ def save(started: float, lines: list, who: Who):
         if lines:
             print("Nobody registered took part: nothing was kept.")
         return None
-    kept = [dict(line, person=who.person(line["speaker"])) for line in lines if who.person(line["speaker"])]
+    kept = [{"speaker": line["speaker"], "text": line["text"], "time": line["time"], "person": who.person(line["speaker"])}
+            for line in lines if who.person(line["speaker"])]
     dropped = len(lines) - len(kept)
     SAVE_TO.mkdir(exist_ok=True)
     name = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime(started)) + ".json"
@@ -129,49 +132,51 @@ async def stream(phone, code: str) -> None:
     loop = asyncio.get_running_loop()
     outbox: asyncio.Queue = asyncio.Queue()
     started, lines = time.time(), []
-    # With a registered voice, the wearer is found by how they sound. Without one, the
-    # first voice is taken to be the wearer.
+    # With a registered voice, the wearer's phrases are found by how they sound, whatever
+    # speaker numbers Deepgram gives. Without one, the first voice is taken to be the wearer.
     ears_for_me = Listening(VOICE) if VOICE is not None and VOICE.registered else None
-    who = Who(SIGHT, first_voice_is_me=ears_for_me is None)
+    who = Who(SIGHT, me=ME if ears_for_me else None)
 
     def shown(pieces):
         """Words of the wearer and of registered people as they are; anyone else's withheld."""
-        return [piece if who.person(piece["speaker"]) else {"speaker": piece["speaker"], "text": "", "hidden": True}
-                for piece in pieces]
+        return [{"speaker": piece["speaker"], "text": piece["text"]} if who.person(piece["speaker"])
+                else {"speaker": piece["speaker"], "text": "", "hidden": True} for piece in pieces]
 
     def tell_all():
-        # A voice just got a name (or turned out to be the wearer): what it said before can be shown now.
+        # A voice just got a name, or a phrase turned out to be someone else's: the whole conversation again.
         loop.call_soon_threadsafe(outbox.put_nowait, who.message())
-        loop.call_soon_threadsafe(outbox.put_nowait, {"type": "all", "final": False, "segments": shown(
-            [{"speaker": line["speaker"], "text": line["text"]} for line in list(lines)])})
+        loop.call_soon_threadsafe(outbox.put_nowait, {"type": "all", "final": False, "segments": shown(list(lines))})
 
     def on_segments(pieces, final):                 # called on the Deepgram client's thread
         changed = False
         if final:
             for piece in pieces:
-                lines.append({"speaker": piece["speaker"], "text": piece["text"], "time": time.time()})
-            changed = who.heard(pieces)
+                lines.append({"speaker": piece["speaker"], "text": piece["text"], "time": time.time(), "phrase": piece.get("phrase")})
+            if ears_for_me:                         # every new phrase can change who said the earlier ones
+                now = ears_for_me.speakers()
+                for line in lines:
+                    if line["phrase"] is not None and line["speaker"] != now[line["phrase"]]:
+                        line["speaker"], changed = now[line["phrase"]], True
+            changed = who.heard(pieces) or changed
         loop.call_soon_threadsafe(outbox.put_nowait, {"type": "transcript", "final": final, "segments": shown(pieces)})
         if changed:
             tell_all()
 
-    def is_it_me(speaker):                          # on a helper thread: decoding sound takes a moment
+    def tell_apart(words, final):                   # called on the Deepgram client's thread, before on_segments
+        if not final:
+            return ears_for_me.guess(segments(words))
         try:
-            score = ears_for_me.compare(speaker)
+            pieces = ears_for_me.heard(words)
         except VoiceError as problem:
-            print("  (voice check failed: %s)" % problem)
-            return
-        print("  (voice check: speaker %s sounds %.2f like the wearer)" % (speaker, score))
-        if who.set_me(ears_for_me.me()):
-            tell_all()
-
-    def on_words(words):                            # called on the Deepgram client's thread
-        for speaker in ears_for_me.words(words):
-            loop.call_soon_threadsafe(loop.run_in_executor, None, is_it_me, speaker)
+            print("  (cannot tell the wearer's voice apart: %s)" % problem)
+            return segments(words)
+        for piece in pieces:
+            print("  (phrase: %s)" % ears_for_me.note(piece["phrase"]))
+        return pieces
 
     try:
         # start() blocks while it connects, so it runs on a helper thread.
-        ears = await loop.run_in_executor(None, lambda: DiarizedSpeech(on_segments, on_words if ears_for_me else None).start())
+        ears = await loop.run_in_executor(None, lambda: DiarizedSpeech(on_segments, tell_apart if ears_for_me else None).start())
     except speech.VexoError as problem:
         # The kit's sentences say what to do and never contain the key.
         print("Cannot start: %s" % problem)
@@ -182,13 +187,15 @@ async def stream(phone, code: str) -> None:
     print("A phone is streaming. %s Text:" % ("The wearer is found by their registered voice." if ears_for_me
                                                else "No voice registered: the first voice is taken to be the wearer."))
     await phone.send(json.dumps({"type": "ready", "knows_wearer": ears_for_me is not None}))
+    if ears_for_me:
+        await phone.send(json.dumps(who.message()))         # the wearer's speaker number, before any words
 
     async def to_phone():
         while True:
             message = await outbox.get()
             if message["type"] == "speakers":
-                print("  (voices: %s)" % ", ".join(["speaker %s is the wearer" % message["me"]] +
-                                                   ["speaker %s is %s" % pair for pair in message["names"].items()]))
+                print("  (voices: %s)" % (", ".join("speaker %s is %s" % pair for pair in message["names"].items())
+                                          or "speaker %s is the wearer" % message["me"]))
             elif message["type"] == "transcript" and message["final"]:
                 for piece in message["segments"]:
                     if piece.get("hidden"):
@@ -201,9 +208,9 @@ async def stream(phone, code: str) -> None:
     try:
         async for packet in phone:
             if isinstance(packet, (bytes, bytearray)) and 0 < len(packet) <= 4096:
-                ears.feed(bytes(packet))
                 if ears_for_me:
                     ears_for_me.packet(bytes(packet))       # kept in memory for this conversation only
+                ears.feed(bytes(packet))
                 if ears.error:
                     await phone.send(json.dumps({"type": "error", "message": "Deepgram stopped listening. Start again."}))
                     break
@@ -374,7 +381,7 @@ async def main() -> None:
         print("No Deepgram key yet, so there will be no text. %s" % problem)
     print("Gemini key: found." if setting("GEMINI_API_KEY") else
           "No Gemini key yet, so nothing is remembered about people. Put GEMINI_API_KEY=your-key in .env.")
-    print("Familiar server is running. In the app, under Live transcript, type:")
+    print("Familiar server is running. In the app, on Connect to your server, type:")
     for address in addresses(port):
         print("    Server:        %s" % address)
     print("    Pairing code:  %s" % code)

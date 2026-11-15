@@ -3,9 +3,9 @@
 > Living document. Everything here can change. Claude updates it as we build: phases get
 > checked off, decisions get logged, and pivots are recorded in the changelog.
 >
-> **Last updated:** 2026-11-14 (2:30 PT) · **Current phase:** 5 (the whole loop runs on real
+> **Last updated:** 2026-11-14 (3:55 PT) · **Current phase:** 5 (the whole loop runs on real
 > hardware; voice registration and the registered-only rule are untested on real speech;
-> the app still has test screens, not the design) · **Hard stop:** submit before 6:00 PM PT today
+> the app now has the designed screens, checked in the Simulator only) · **Hard stop:** submit before 6:00 PM PT today
 
 ---
 
@@ -117,8 +117,9 @@ camera. That way the glasses can fail without taking the face feature down with 
 - [x] Implement the band's commands we need in Swift (start audio, events, battery);
       unit-test against `vexo-open-kit/contract/test-vectors.json`
 - [ ] Stream audio packets to the backend; reconnect and restart streams after a drop
-- [ ] Screens: people list · profile card · live "who's talking". Build them to match the
-      [UI design](https://claude.ai/artifact/B49Q5gvrt6Kkxk8MbH7jQ3) (decision 10).
+- [x] Screens: people list · profile card · live "who's talking", built from the design
+      in `web-prototype/` (decision 17). **Checked in the Simulator with the pretend band;
+      not yet on the iPhone with the real band and glasses.**
 - [ ] (declared in the app, untested) Background mode (`bluetooth-central`) so it keeps listening with the screen locked
 
 ### Phase 5: The recall moment + demo
@@ -159,6 +160,7 @@ Items 1–3 are the product. Items 4–5 make it better. Nobody leaves 1–3 to 
 | 13 | Face matching runs on the server, and the iPhone camera is the first camera | **Decided** (2026-11-14, built) | Same server and pairing as the audio. The phone camera gives a working face feature within the hour and a fallback if the glasses don't connect. |
 | 14 | Only enrolled faces are matched; nothing is kept for strangers | **Decided** (2026-11-14, built) | Frames are compared and thrown away. A new person is saved only when the user or a family member adds them. See S5. |
 | 15 | Only registered people are recorded | **Decided** (2026-11-14, built) | The user's call, for the dementia use. A person is registered in the app (name, relationship, a confirmed yes from them or family, photos). Only the wearer's words and recognised registered people's words are shown, saved or sent to Gemini. Anyone else's are withheld and dropped; a conversation with no registered person leaves nothing. Deepgram still hears the room to make the text. |
+| 17 | The app's screens follow `web-prototype/` | **Decided** (2026-11-14, built) | The user's call. `web-prototype/` is the newer form of the design artifact (decision 10): ghost white, cool grey, freezing blue; setup flow; four tabs. Where the prototype shows something the server cannot do yet (confirm or reject a face, Lock Screen and Dynamic Island), the app leaves it out instead of faking it. |
 | 16 | The wearer registers their own voice | **Decided** (2026-11-14, built) | Replaces "the first voice is the wearer". A voice model on the server (sherpa-onnx, WeSpeaker CAM++) compares each voice in a conversation with the registered one. Brings back a voice fingerprint, but only for the wearer, who registers themselves. |
 
 ---
@@ -364,3 +366,17 @@ confirms. Keep the blue light visible. Judges will likely ask about this.
   always usable, photos gather as small pictures on the screen (each removable), and a
   Register button sends them once the name, the yes and the server are there. **Installed
   on the iPhone; not yet confirmed by the user.**
+- **2026-11-14 (3:55 PT): The app has the designed screens (decision 17).** The SwiftUI
+  screens were rebuilt from `web-prototype/`: light and dark theme, first-run setup
+  (server, band, privacy, camera, my voice), four tabs (Now, People, Recaps, Privacy),
+  Settings, "This is Maria" and "Might be Leo", the logo as the app icon. The band, server
+  and camera code underneath is the same; everything the old test screens did is still
+  there (band details and activity log under Settings → Band; sound counters under the
+  live transcript; camera preview on Now; all four ways to add a photo). New behaviour:
+  the app keeps a connection to the server while idle, so People lists without the camera;
+  Listen clears the previous transcript; the Recaps tab shows what the last conversation
+  left; a phone that already had a server address skips setup. Left out because the server
+  has nothing behind them: "Not Maria?" / "Yes, it's Leo", Lock Screen and Dynamic Island.
+  Old screens `BandView.swift` and `FacesView.swift` are gone. **Builds for the Simulator
+  and for a real iPhone; every screen looked at in the Simulator with the pretend band and
+  a made-up visit. Not yet run on the iPhone with the real band, glasses or server.**

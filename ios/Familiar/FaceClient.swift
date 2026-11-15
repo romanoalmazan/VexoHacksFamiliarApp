@@ -27,20 +27,38 @@ final class FaceClient {
         let recall: String?
         let facts: [String]?
         let followUps: [String]?
+        /// When the last conversation with them ended. Only in the list of enrolled people.
+        let lastSeen: Moment?
 
         enum CodingKeys: String, CodingKey {
             case name, relationship, match, photos, recall, facts
             case followUps = "follow_ups"
+            case lastSeen = "last_seen"
         }
 
         var id: String { name }
         var isSure: Bool { match == "sure" }
 
+        /// "This is Maria, your daughter."
+        var intro: String {
+            relationship.isEmpty ? "This is \(name)." : "This is \(name), your \(relationship)."
+        }
+
         /// "This is Maria, your daughter. Last time, she told you Leo graduated."
         var sentence: String {
-            let who = relationship.isEmpty ? "This is \(name)." : "This is \(name), your \(relationship)."
-            guard let recall, !recall.isEmpty else { return who }
-            return who + " " + recall
+            guard let recall, !recall.isEmpty else { return intro }
+            return intro + " " + recall
+        }
+    }
+
+    /// A time from the server, in seconds since 1970. Anything else there reads as "unknown"
+    /// instead of spoiling the whole message.
+    struct Moment: Equatable, Decodable {
+        let date: Date?
+
+        init(from decoder: Decoder) throws {
+            let seconds = try? decoder.singleValueContainer().decode(Double.self)
+            date = seconds.map { Date(timeIntervalSince1970: $0) }
         }
     }
 
@@ -105,6 +123,26 @@ final class FaceClient {
     func forget(_ name: String) {
         send(["type": "forget", "name": name])
     }
+
+    /// Asks for the list of registered people again: what is remembered about them changes
+    /// a few seconds after a conversation ends.
+    func refresh() {
+        guard state == .live else { return }
+        send(["type": "people"])
+    }
+
+    /// Says who this is, now, because the wearer asked ("Say it again").
+    func say(_ person: Person) {
+        speak(person.sentence)
+    }
+
+    #if DEBUG
+    /// For automated checks only: behaves as if the server had sent these messages.
+    func pretendServerSaid(_ messages: [String]) {
+        state = .live
+        messages.forEach(handle)
+    }
+    #endif
 
     private func send(_ message: [String: Any]) {
         guard state == .live, let socket else {
@@ -185,9 +223,13 @@ final class FaceClient {
         guard speaks, sure.count == 1, let person = sure.first else { return }
         if let last = lastSaid[person.name], Date().timeIntervalSince(last) < Self.quiet { return }
         lastSaid[person.name] = Date()
+        speak(person.sentence)
+    }
+
+    private func speak(_ sentence: String) {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .voicePrompt, options: [.duckOthers])
         try? AVAudioSession.sharedInstance().setActive(true)
-        let line = AVSpeechUtterance(string: person.sentence)
+        let line = AVSpeechUtterance(string: sentence)
         line.rate = 0.45
         voice.speak(line)
     }

@@ -4,7 +4,9 @@ import SwiftUI
 /// Register a person: the only way anyone gets recognised, and the only people whose
 /// words are ever kept. Needs a yes from them (or their family) before the first photo.
 struct RegisterView: View {
-    let watch: FaceWatch
+    let model: AppModel
+    /// Set when adding photos to someone already registered.
+    var presetName = ""
 
     @AppStorage("serverAddress") private var serverAddress = ""
     @AppStorage("pairingCode") private var pairingCode = ""
@@ -25,161 +27,238 @@ struct RegisterView: View {
     /// The camera was off when this opened, so it is switched off again on the way out.
     @State private var startedHere = false
 
+    private static let relationships = ["daughter", "son", "grandson", "granddaughter", "friend", "neighbour", "carer", "doctor"]
+
+    private var watch: FaceWatch { model.watch }
     private var faces: FaceClient { watch.faces }
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
     private var canAdd: Bool { !trimmedName.isEmpty && agreed && faces.state == .live }
     private var photos: Int { faces.people.first { $0.name == trimmedName }?.photos ?? 0 }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Name, e.g. Maria", text: $name)
-                        .textInputAutocapitalization(.words)
-                    TextField("Who they are to the wearer, e.g. daughter", text: $relationship)
-                        .textInputAutocapitalization(.never)
-                } footer: {
-                    Text("The wearer will hear: “This is \(trimmedName.isEmpty ? "Maria" : trimmedName), your \(relationship.isEmpty ? "daughter" : relationship).”")
-                }
+        Screen {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Register a person").font(.title.weight(.bold)).accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button("Done") { dismiss() }
+                    .font(.body.weight(.semibold)).foregroundStyle(Theme.blue)
+                    .frame(height: 44)
+            }
+            .padding(.top, 12)
 
-                Section {
-                    Toggle("They agreed to this", isOn: $agreed)
-                } footer: {
-                    Text("Registering means Familiar will recognise their face, keep what they say to the wearer as text, and remind the wearer of it next time. Only registered people are ever recorded. They, or family speaking for them, must say yes. They can be forgotten at any time.")
-                }
+            HStack(spacing: 12) {
+                Tile("speaker.wave.2", size: 36)
+                Text("You will hear: ").foregroundStyle(Theme.ink2)
+                    + Text("“This is \(trimmedName.isEmpty ? "Maria" : trimmedName), your \(relationship.isEmpty ? "daughter" : relationship).”").fontWeight(.semibold)
+                Spacer(minLength: 0)
+            }
+            .font(.subheadline)
+            .card(padding: 16)
+            .padding(.top, 10)
 
-                Section {
-                    preview
-                    Button {
-                        if let jpeg = watch.latestJPEG { waiting.append(jpeg) }
-                    } label: {
-                        Label(watch.usingGlasses ? "Use what the glasses see now" : "Use the picture above", systemImage: "camera.viewfinder")
+            SectionTitle("Name").padding(.top, 16)
+            TextField("Their name", text: $name)
+                .textInputAutocapitalization(.words)
+                .modifier(FilledField())
+                .padding(.top, 6)
+
+            SectionTitle("Who they are to the wearer").padding(.top, 14)
+            TextField("Daughter, neighbour, carer…", text: $relationship)
+                .textInputAutocapitalization(.never)
+                .modifier(FilledField())
+                .padding(.top, 6)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(Self.relationships, id: \.self) { choice in
+                        Button {
+                            relationship = choice
+                        } label: {
+                            Chip(relationship == choice ? .live : .plain) { Text(choice.capitalized) }
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .disabled(watch.latestJPEG == nil)
+                }
+            }
+            .padding(.top, 8)
+
+            SwitchRow(title: "They agreed to this",
+                      detail: "Familiar will recognise their face, keep what they say to the wearer as text, and remind the wearer of it next time. They, or family speaking for them, must say yes. They can be forgotten at any time.",
+                      isOn: $agreed)
+                .padding(.top, 16)
+
+            SectionTitle("Photos of their face").padding(.top, 20)
+            VStack(alignment: .leading, spacing: 10) {
+                CameraLook(watch: watch, height: 260)
+                Button {
+                    if let jpeg = watch.latestJPEG { waiting.append(jpeg) }
+                } label: {
+                    PillLabel(title: watch.usingGlasses ? "Use what the glasses see now" : "Use the picture above", icon: "camera.viewfinder")
+                }
+                .buttonStyle(PressStyle())
+                .disabled(watch.latestJPEG == nil)
+                .opacity(watch.latestJPEG == nil ? 0.5 : 1)
+
+                HStack(spacing: 10) {
                     Button {
                         photoProblem = nil
                         // The iPhone has one camera to give: the live picture pauses while the photo is taken.
                         if !watch.usingGlasses { watch.phone.stop() }
                         takingPhoto = true
                     } label: {
-                        Label("Take a photo with the iPhone", systemImage: "camera.fill")
+                        PillLabel(title: "Take photo", icon: "camera")
                     }
+                    .buttonStyle(PressStyle())
                     .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
+                    .opacity(UIImagePickerController.isSourceTypeAvailable(.camera) ? 1 : 0.5)
+                    .accessibilityLabel("Take a photo with the iPhone")
+
                     PhotosPicker(selection: $picked, maxSelectionCount: 5, matching: .images) {
-                        Label("Choose photos from the library", systemImage: "photo.on.rectangle")
+                        PillLabel(title: "From library", icon: "photo.on.rectangle")
                     }
-                    Button {
-                        photoProblem = nil
-                        choosingFile = true
-                    } label: {
-                        Label("Upload a photo from Files", systemImage: "folder")
-                    }
-                    if !waiting.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(Array(waiting.enumerated()), id: \.offset) { index, jpeg in
-                                    if let picture = UIImage(data: jpeg) {
-                                        Image(uiImage: picture)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 72, height: 72)
-                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            .overlay(alignment: .topTrailing) {
-                                                Button { waiting.remove(at: index) } label: {
-                                                    Image(systemName: "xmark.circle.fill")
-                                                        .font(.title3)
-                                                        .symbolRenderingMode(.palette)
-                                                        .foregroundStyle(.white, .black.opacity(0.6))
-                                                }
-                                                .buttonStyle(.plain)
-                                                .padding(2)
-                                                .accessibilityLabel("Remove this photo")
+                    .buttonStyle(PressStyle())
+                    .accessibilityLabel("Choose photos from the library")
+                }
+                Button {
+                    photoProblem = nil
+                    choosingFile = true
+                } label: {
+                    PillLabel(title: "Upload a photo from Files", icon: "folder")
+                }
+                .buttonStyle(PressStyle())
+
+                if !waiting.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(waiting.enumerated()), id: \.offset) { index, jpeg in
+                                if let picture = UIImage(data: jpeg) {
+                                    Image(uiImage: picture)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 72, height: 72)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                        .overlay(alignment: .topTrailing) {
+                                            Button { waiting.remove(at: index) } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.title3)
+                                                    .symbolRenderingMode(.palette)
+                                                    .foregroundStyle(.white, .black.opacity(0.6))
                                             }
-                                    }
+                                            .buttonStyle(.plain)
+                                            .padding(2)
+                                            .accessibilityLabel("Remove this photo")
+                                        }
                                 }
                             }
                         }
-                        Button {
-                            for jpeg in waiting { faces.enrol(name: trimmedName, relationship: relationship, jpeg: jpeg) }
-                            waiting = []
-                        } label: {
-                            Label("Register \(trimmedName.isEmpty ? "them" : trimmedName) with \(waiting.count == 1 ? "this photo" : "these \(waiting.count) photos")", systemImage: "person.crop.circle.badge.plus")
-                                .bold()
-                        }
-                        .disabled(!canAdd)
-                        if !canAdd {
-                            Text(trimmedName.isEmpty ? "Type their name at the top to register them."
-                                 : !agreed ? "Switch on “They agreed to this” to register them."
-                                 : "Waiting for the server. Check its address and pairing code on the main screen.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    } else if !UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        Text("This device has no camera of its own. Use the library or Files.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
                     }
-                    if let photoProblem {
-                        Label(photoProblem, systemImage: "exclamationmark.triangle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
+                } else if !UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    Text("This device has no camera of its own. Use the library or Files.")
+                        .font(.footnote).foregroundStyle(Theme.muted)
+                }
+
+                HStack(spacing: 6) {
+                    ForEach(1...3, id: \.self) { step in
+                        Capsule()
+                            .fill(photos + waiting.count >= step ? AnyShapeStyle(Theme.accentGradient) : AnyShapeStyle(Theme.track))
+                            .frame(height: 6)
                     }
-                    if photos > 0 {
-                        Label("\(photos) photo\(photos == 1 ? "" : "s") of \(trimmedName) so far", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    }
-                    if let notice = faces.notice {
-                        Text(notice).font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    if case .failed(let reason) = faces.state {
-                        Label(reason, systemImage: "exclamationmark.triangle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
-                    }
-                } header: {
-                    Text("Photos")
-                } footer: {
-                    Text("Three or more works best: straight on, a little left, a little right. One face per photo. Add the photos, then tap Register. Photos are not kept, only a description of the face.")
+                }
+                .padding(.top, 4)
+                .accessibilityHidden(true)
+                Text("Three or more works best: straight on, a little left, a little right. One face per photo. Add the photos, then tap Register.")
+                    .font(.footnote).foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .card(padding: 16)
+            .padding(.top, 8)
+
+            Button {
+                for jpeg in waiting { faces.enrol(name: trimmedName, relationship: relationship, jpeg: jpeg) }
+                waiting = []
+            } label: {
+                Text(waiting.isEmpty
+                     ? "Register \(trimmedName.isEmpty ? "person" : trimmedName)"
+                     : "Register \(trimmedName.isEmpty ? "them" : trimmedName) with \(waiting.count == 1 ? "this photo" : "these \(waiting.count) photos")")
+            }
+            .buttonStyle(CapsuleButton())
+            .disabled(!canAdd || waiting.isEmpty)
+            .padding(.top, 18)
+
+            if !canAdd || waiting.isEmpty {
+                Text(trimmedName.isEmpty ? "Type their name at the top to register them."
+                     : !agreed ? "Switch on “They agreed to this” to register them."
+                     : faces.state != .live ? "Waiting for the server. Check its address and pairing code in Settings."
+                     : photos > 0 ? "Add more photos, or tap Done."
+                     : "Add at least one photo of their face.")
+                    .font(.footnote).foregroundStyle(Theme.muted)
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 10)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                if let photoProblem {
+                    ProblemNote(photoProblem)
+                }
+                if photos > 0 {
+                    Label("\(photos) photo\(photos == 1 ? "" : "s") of \(trimmedName) so far", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.greenInk)
+                }
+                if let notice = faces.notice {
+                    Text(notice).font(.subheadline).foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if case .failed(let reason) = faces.state {
+                    ProblemNote(reason)
                 }
             }
-            .navigationTitle("Register a person")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+            .padding(.top, 12)
+
+            Text("The server keeps their name, relationship and numbers describing their face. Not the photos.")
+                .font(.footnote).foregroundStyle(Theme.muted)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .padding(.top, 14)
+        }
+        .onChange(of: picked) { _, items in
+            guard !items.isEmpty else { return }
+            photoProblem = nil
+            Task {
+                for item in items {
+                    add(try? await item.loadTransferable(type: Data.self))
                 }
+                picked = []
             }
-            .onChange(of: picked) { _, items in
-                guard !items.isEmpty else { return }
-                photoProblem = nil
-                Task {
-                    for item in items {
-                        add(try? await item.loadTransferable(type: Data.self))
-                    }
-                    picked = []
-                }
+        }
+        .fullScreenCover(isPresented: $takingPhoto, onDismiss: {
+            if !watch.usingGlasses, watch.isOn { watch.phone.start() }
+        }) {
+            SystemCamera { photo in add(photo) }
+                .ignoresSafeArea()
+        }
+        .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.image], allowsMultipleSelection: true) { result in
+            guard case .success(let files) = result else { return }
+            for file in files {
+                let allowed = file.startAccessingSecurityScopedResource()
+                add(try? Data(contentsOf: file))
+                if allowed { file.stopAccessingSecurityScopedResource() }
             }
-            .fullScreenCover(isPresented: $takingPhoto, onDismiss: {
-                if !watch.usingGlasses, watch.isOn { watch.phone.start() }
-            }) {
-                SystemCamera { photo in add(photo) }
-                    .ignoresSafeArea()
+        }
+        .onAppear {
+            if name.isEmpty, !presetName.isEmpty {
+                name = presetName
+                // Adding photos to someone already registered: keep who they are.
+                if let known = model.person(named: presetName) { relationship = known.relationship }
             }
-            .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.image], allowsMultipleSelection: true) { result in
-                guard case .success(let files) = result else { return }
-                for file in files {
-                    let allowed = file.startAccessingSecurityScopedResource()
-                    add(try? Data(contentsOf: file))
-                    if allowed { file.stopAccessingSecurityScopedResource() }
-                }
-            }
-            .onAppear {
-                guard !watch.isOn else { return }
-                startedHere = true
-                watch.start(server: serverAddress, code: pairingCode, useGlasses: useGlasses)
-            }
-            .onDisappear {
-                if startedHere { watch.stop() }
+            guard !watch.isOn else { return }
+            startedHere = true
+            watch.start(server: serverAddress, code: pairingCode, useGlasses: useGlasses)
+        }
+        .onDisappear {
+            if startedHere {
+                watch.stop()
+                model.reach()       // the camera goes off, the list of people stays in reach
             }
         }
     }
@@ -193,43 +272,16 @@ struct RegisterView: View {
         }
         waiting.append(jpeg)
     }
+}
 
-    @ViewBuilder
-    private var preview: some View {
-        if watch.usingGlasses {
-            if let picture = watch.glasses.preview {
-                Image(uiImage: picture)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
-                    .frame(maxHeight: 300)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
-                Label("Waiting for the glasses' camera. Put them on, unfolded.", systemImage: "eyeglasses")
-                    .foregroundStyle(.secondary)
-            }
-            if case .problem(let reason) = watch.glasses.status {
-                Label(reason, systemImage: "exclamationmark.triangle.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.orange)
-            }
-        } else if let problem = watch.phoneProblem {
-            Text(problem).font(.subheadline).foregroundStyle(.secondary)
-        } else {
-            CameraPreview(session: watch.phone.session)
-                .frame(height: 300)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(alignment: .topTrailing) {
-                    Button { watch.phone.flip() } label: {
-                        Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                            .padding(10)
-                            .background(.thinMaterial, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(8)
-                    .accessibilityLabel("Switch camera")
-                }
-        }
+/// The design's filled text field.
+private struct FilledField: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.body)
+            .padding(.horizontal, 14)
+            .frame(height: 48)
+            .background(Theme.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

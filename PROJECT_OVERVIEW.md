@@ -63,8 +63,8 @@ person's name.
   "possible" match, or nobody. The match is strict, because a wrong name is worse than
   no name.
 - Two cameras: Ray-Ban Meta glasses, or the iPhone's own camera when there are no glasses.
-- **People & faces** shows who is in view and the list of registered people. Swipe a
-  person to forget them; their profile goes too.
+- The **Now** tab shows who is in view; the **People** tab lists the registered people.
+  Open a person and tap Forget to delete them; their profile goes too.
 
 ### Putting a name to a voice
 
@@ -114,10 +114,16 @@ person's name.
 ```
 ios/
   Familiar/            the SwiftUI app
-    BandView.swift       main screen: band connection, battery, Listen, live transcript
-    FacesView.swift      People & faces: who is in view, the people list
+    Theme.swift          the design's colours, light and dark (from web-prototype/)
+    Components.swift     cards, buttons, avatars, the tab bar, the logo
+    AppModel.swift       what the screens share: Listen, the last conversation, navigation
+    RootView.swift       setup the first time, then the four tabs
+    SetupScreens.swift   welcome, server, band, privacy, camera, my voice
+    NowScreen.swift      Now tab: Listen, who is in view, live transcript; "This is Maria"
+    PeopleScreens.swift  People tab and profiles; Recaps tab (what a conversation left)
+    PrivacyScreens.swift Privacy tab, "Show someone", Settings
     RegisterView.swift   register a person (name, relationship, consent, photos)
-    RegisterVoiceView.swift  the wearer registers their own voice
+    RegisterVoiceView.swift  the connection that registers the wearer's own voice
     GlassesCamera.swift  Meta glasses camera (Meta Wearables Device Access Toolkit 1.0.1)
     PhoneCamera.swift    iPhone camera, used when there are no glasses
     FaceClient.swift     pictures to the server, names back

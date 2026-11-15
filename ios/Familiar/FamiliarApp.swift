@@ -12,6 +12,8 @@ struct FamiliarApp: App {
     @State private var band = BandClient(band: BandConfig.teamBand)
     @State private var transcript = TranscriptClient()
     @State private var watch = FaceWatch(faces: FaceClient(), glasses: GlassesCamera())
+    /// What the screens share. Made once, around the three objects above.
+    @State private var model: AppModel?
 
     private var faces: FaceClient { watch.faces }
     private var glasses: GlassesCamera { watch.glasses }
@@ -22,7 +24,16 @@ struct FamiliarApp: App {
 
     var body: some Scene {
         WindowGroup {
-            BandView(band: band, transcript: transcript, watch: watch)
+            Group {
+                if let model {
+                    RootView(model: model)
+                } else {
+                    ScreenBackground()
+                }
+            }
+                .onAppear {
+                    if model == nil { model = AppModel(band: band, transcript: transcript, watch: watch) }
+                }
                 .onOpenURL { glasses.handle($0) }       // Meta AI coming back after linking
                 .task { await glasses.watch() }
                 .task {
@@ -85,11 +96,43 @@ struct FamiliarApp: App {
                 .task {
                     // For automated checks only: launch with -demoPretend to connect to the
                     // pretend band and switch its microphone on without touching the screen.
-                    guard ProcessInfo.processInfo.arguments.contains("-demoPretend") else { return }
+                    // With -demoListen too, Listen goes on the way the Listen button does it.
+                    let arguments = ProcessInfo.processInfo.arguments
+                    guard arguments.contains("-demoPretend") else { return }
                     band.connect(pretend: true)
                     try? await Task.sleep(nanoseconds: 2_500_000_000)
-                    await band.setMic(true)
+                    for _ in 0..<40 where band.phase != .connected {
+                        try? await Task.sleep(nanoseconds: 250_000_000)
+                    }
+                    if arguments.contains("-demoListen"), let model {
+                        model.listen(true)
+                    } else if !arguments.contains("-demoIdle") {
+                        await band.setMic(true)
+                    }
                 }
+                #if DEBUG
+                .task {
+                    // For automated checks only: launch with -demoStory to show a made-up visit
+                    // on the screens, as if the server had sent it. Nothing is sent anywhere.
+                    guard ProcessInfo.processInfo.arguments.contains("-demoStory") else { return }
+                    try? await Task.sleep(nanoseconds: 4_500_000_000)
+                    faces.speaks = false
+                    faces.pretendServerSaid([
+                        #"{"type": "people", "people": [{"name": "Maria", "relationship": "daughter", "photos": 4, "recall": "Last time, Maria told you about Leo’s graduation next Saturday.", "facts": ["Lives in Portland with her husband Sam", "Her son Leo is graduating from high school", "Works as a nurse"], "follow_ups": ["Ask how Leo’s graduation went", "Ask about Sam’s new job"], "last_seen": 1794000000}, {"name": "Leo", "relationship": "grandson", "photos": 3, "recall": "Leo showed you his robotics project.", "facts": [], "follow_ups": []}]}"#,
+                        #"{"type": "faces", "people": [{"name": "Maria", "relationship": "daughter", "match": "sure", "recall": "Last time, Maria told you about Leo’s graduation next Saturday."}, {"name": "Leo", "relationship": "grandson", "match": "possible", "recall": ""}], "unknown": 0}"#,
+                    ])
+                    transcript.pretendServerSaid([
+                        #"{"type": "speakers", "me": 0, "names": {"1": "Maria"}}"#,
+                        #"{"type": "transcript", "final": true, "segments": [{"speaker": 0, "text": "Oh, hello! Come in, come in."}, {"speaker": 1, "text": "Hi Mum. I brought the photos from Leo’s graduation."}, {"speaker": 2, "text": "", "hidden": true}, {"speaker": 0, "text": "Let me see! Was it a nice day?"}]}"#,
+                        #"{"type": "transcript", "final": false, "segments": [{"speaker": 1, "text": "It was lovely. He gave a"}]}"#,
+                    ])
+                    // With -demoStop too, the visit ends and the Recaps tab shows what it left.
+                    guard ProcessInfo.processInfo.arguments.contains("-demoStop"), let model else { return }
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    model.listen(false)
+                    model.tab = .recaps
+                }
+                #endif
         }
     }
 }

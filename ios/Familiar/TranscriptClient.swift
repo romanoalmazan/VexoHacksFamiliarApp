@@ -97,6 +97,13 @@ final class TranscriptClient {
         socket.send(.data(opus)) { _ in }
     }
 
+    #if DEBUG
+    /// For automated checks only: behaves as if the server had sent these messages.
+    func pretendServerSaid(_ messages: [String]) {
+        messages.forEach(handle)
+    }
+    #endif
+
     private func listen(on socket: URLSessionWebSocketTask) {
         socket.receive { [weak self] result in
             Task { @MainActor in

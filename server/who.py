@@ -3,9 +3,10 @@
 # says WHO is in front of the wearer. This file decides which voice belongs to which person.
 #
 # The rules, kept simple on purpose:
-#   - The wearer ("Me") is the voice that matches the voice they registered (voice.py
-#     tells this file through set_me). If they never registered one, it is the first
-#     voice heard after Listen is switched on, so then the wearer speaks first.
+#   - The wearer ("Me"): if they registered their voice, voice.py finds their phrases by
+#     sound and gives them a speaker number of their own (voice.ME), so here the wearer
+#     is known from the start. If they never registered one, it is the first voice
+#     heard after Listen is switched on, so then the wearer speaks first.
 #   - When another voice speaks while exactly one enrolled person is surely in view, that
 #     is a vote that the voice is that person, weighted by how many words were said (the
 #     wearer often glances at someone else during a short "yeah").
@@ -49,10 +50,10 @@ class Sight:
 class Who:
     """One conversation's answer to "which voice is which person"."""
 
-    def __init__(self, sight: Sight, first_voice_is_me: bool = True):
+    def __init__(self, sight: Sight, me=None):
         self.sight = sight
-        self.first_voice_is_me = first_voice_is_me
-        self.me = None               # the wearer's speaker number
+        self.first_voice_is_me = me is None
+        self.me = me                 # the wearer's speaker number
         self.votes = {}              # speaker -> {name: count}
         self.names = {}              # speaker -> name
 
@@ -82,15 +83,6 @@ class Who:
             if settled:
                 self.names[speaker], changed = best, True
         return changed
-
-    def set_me(self, speaker) -> bool:
-        """The voice check found the wearer's voice. True if that is news."""
-        if speaker is None or speaker == self.me:
-            return False
-        self.me = speaker
-        self.names.pop(speaker, None)         # the wearer is nobody else
-        self.votes.pop(speaker, None)
-        return True
 
     def person(self, speaker):
         """"Me", a name, or None."""

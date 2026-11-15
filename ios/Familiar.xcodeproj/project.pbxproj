@@ -7,37 +7,49 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02887056A8116680C5AA6088 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EE4623911949F5676F86272 /* RootView.swift */; };
 		09C48C11930ECADC284B0A16 /* FamiliarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F0223EAB5D2BAC6F582E11 /* FamiliarApp.swift */; };
 		1AE83F0A05E7BD8E2BABB89F /* RegisterVoiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E4651F58388CBA0559BEA3 /* RegisterVoiceView.swift */; };
 		1CE1AABD0A442E2D8B41CCAB /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = A18D2FE4AC8CD435B3A3BD44 /* MWDATCore */; };
 		247138AF02FF879B3EB30CD3 /* TranscriptClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A980CDCDCA7911E915DAB888 /* TranscriptClient.swift */; };
+		2C1761CA3F56DB5096ACBF0C /* PrivacyScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E307CAD6E8ECCDD5B8A1D08 /* PrivacyScreens.swift */; };
 		44B7CED2F21B9F9374CE66C2 /* FaceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63FD6ACA30D527434673CE01 /* FaceClient.swift */; };
+		54D57E994C0AA17DFC45CC60 /* SetupScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1598C848A6F8E4439782176 /* SetupScreens.swift */; };
 		5F60A1B3148BF790C4FAAADE /* PhoneCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC37E61A5BB7CAE0A8E38AC2 /* PhoneCamera.swift */; };
+		73390161A3D777A07F65F978 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F11690C9C46C56491F3C29 /* Components.swift */; };
 		7702D5DEC6067F77819A4DBF /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = C9FEA4705AF1C74E0DD565AE /* MWDATCamera */; };
-		7D9D61F4488FC6103221B6EB /* FacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB00E55665CDD642272FAB21 /* FacesView.swift */; };
 		7E8A3AE33F5578ED287B10FA /* GlassesCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FF3411E4C361481855B3DF /* GlassesCamera.swift */; };
 		8DD0BAA6BB9FCBA36989679A /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = 946AF7CA66CB4BF68B43D965 /* MWDATMockDevice */; };
 		910C812007285696C45AB933 /* RegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41FBD4E5C3C739D216E99E57 /* RegisterView.swift */; };
-		97626756FA8278BBCB58F23C /* BandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A848551D7DA06A345431DCEB /* BandView.swift */; };
 		ADA3622C86A492F03D5CCF7F /* FaceWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD111E4E7C556B5B8A81468 /* FaceWatch.swift */; };
+		D4821746F9015BAC448437EE /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12156966E0BF7D0A32F10452 /* AppModel.swift */; };
 		F41BE64FC33B05EDD35127CF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 89BB0BCC17B42CFB27F7B8B6 /* Assets.xcassets */; };
+		F4C022A85F4D15334357DBDD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 828D33EAA83B8072A37511C0 /* Theme.swift */; };
 		F659A13EEBDC31C271DAE8C4 /* VexoBand in Frameworks */ = {isa = PBXBuildFile; productRef = BEEACA7593D92F5ABD8784D2 /* VexoBand */; };
+		F76D160EDA1254F1F34B8113 /* PeopleScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = C57D057D8B7ED14100A46D2A /* PeopleScreens.swift */; };
+		FD341A75203C215FC7839BB2 /* NowScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EFBA4A0DEA0C1D159F25058 /* NowScreen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0EE4623911949F5676F86272 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		12156966E0BF7D0A32F10452 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		15E4651F58388CBA0559BEA3 /* RegisterVoiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterVoiceView.swift; sourceTree = "<group>"; };
+		1EFBA4A0DEA0C1D159F25058 /* NowScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowScreen.swift; sourceTree = "<group>"; };
 		206921FA0F7370D6772196A6 /* Familiar.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Familiar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		38F0223EAB5D2BAC6F582E11 /* FamiliarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamiliarApp.swift; sourceTree = "<group>"; };
 		41FBD4E5C3C739D216E99E57 /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
+		52F11690C9C46C56491F3C29 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		63FD6ACA30D527434673CE01 /* FaceClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceClient.swift; sourceTree = "<group>"; };
+		6E307CAD6E8ECCDD5B8A1D08 /* PrivacyScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyScreens.swift; sourceTree = "<group>"; };
+		828D33EAA83B8072A37511C0 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		89BB0BCC17B42CFB27F7B8B6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8DD111E4E7C556B5B8A81468 /* FaceWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceWatch.swift; sourceTree = "<group>"; };
-		A848551D7DA06A345431DCEB /* BandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandView.swift; sourceTree = "<group>"; };
 		A980CDCDCA7911E915DAB888 /* TranscriptClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptClient.swift; sourceTree = "<group>"; };
+		C1598C848A6F8E4439782176 /* SetupScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupScreens.swift; sourceTree = "<group>"; };
+		C57D057D8B7ED14100A46D2A /* PeopleScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleScreens.swift; sourceTree = "<group>"; };
 		CE7801C586D131A1B4175605 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D3FF3411E4C361481855B3DF /* GlassesCamera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesCamera.swift; sourceTree = "<group>"; };
 		E7974937CCD41EE8BD889631 /* VexoBand */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VexoBand; path = VexoBand; sourceTree = SOURCE_ROOT; };
-		EB00E55665CDD642272FAB21 /* FacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FacesView.swift; sourceTree = "<group>"; };
 		EC37E61A5BB7CAE0A8E38AC2 /* PhoneCamera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneCamera.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -84,17 +96,23 @@
 		CD731A340DDF917D2B0595C7 /* Familiar */ = {
 			isa = PBXGroup;
 			children = (
+				12156966E0BF7D0A32F10452 /* AppModel.swift */,
 				89BB0BCC17B42CFB27F7B8B6 /* Assets.xcassets */,
-				A848551D7DA06A345431DCEB /* BandView.swift */,
+				52F11690C9C46C56491F3C29 /* Components.swift */,
 				63FD6ACA30D527434673CE01 /* FaceClient.swift */,
-				EB00E55665CDD642272FAB21 /* FacesView.swift */,
 				8DD111E4E7C556B5B8A81468 /* FaceWatch.swift */,
 				38F0223EAB5D2BAC6F582E11 /* FamiliarApp.swift */,
 				D3FF3411E4C361481855B3DF /* GlassesCamera.swift */,
 				CE7801C586D131A1B4175605 /* Info.plist */,
+				1EFBA4A0DEA0C1D159F25058 /* NowScreen.swift */,
+				C57D057D8B7ED14100A46D2A /* PeopleScreens.swift */,
 				EC37E61A5BB7CAE0A8E38AC2 /* PhoneCamera.swift */,
+				6E307CAD6E8ECCDD5B8A1D08 /* PrivacyScreens.swift */,
 				41FBD4E5C3C739D216E99E57 /* RegisterView.swift */,
 				15E4651F58388CBA0559BEA3 /* RegisterVoiceView.swift */,
+				0EE4623911949F5676F86272 /* RootView.swift */,
+				C1598C848A6F8E4439782176 /* SetupScreens.swift */,
+				828D33EAA83B8072A37511C0 /* Theme.swift */,
 				A980CDCDCA7911E915DAB888 /* TranscriptClient.swift */,
 			);
 			path = Familiar;
@@ -180,15 +198,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				97626756FA8278BBCB58F23C /* BandView.swift in Sources */,
+				D4821746F9015BAC448437EE /* AppModel.swift in Sources */,
+				73390161A3D777A07F65F978 /* Components.swift in Sources */,
 				44B7CED2F21B9F9374CE66C2 /* FaceClient.swift in Sources */,
 				ADA3622C86A492F03D5CCF7F /* FaceWatch.swift in Sources */,
-				7D9D61F4488FC6103221B6EB /* FacesView.swift in Sources */,
 				09C48C11930ECADC284B0A16 /* FamiliarApp.swift in Sources */,
 				7E8A3AE33F5578ED287B10FA /* GlassesCamera.swift in Sources */,
+				FD341A75203C215FC7839BB2 /* NowScreen.swift in Sources */,
+				F76D160EDA1254F1F34B8113 /* PeopleScreens.swift in Sources */,
 				5F60A1B3148BF790C4FAAADE /* PhoneCamera.swift in Sources */,
+				2C1761CA3F56DB5096ACBF0C /* PrivacyScreens.swift in Sources */,
 				910C812007285696C45AB933 /* RegisterView.swift in Sources */,
 				1AE83F0A05E7BD8E2BABB89F /* RegisterVoiceView.swift in Sources */,
+				02887056A8116680C5AA6088 /* RootView.swift in Sources */,
+				54D57E994C0AA17DFC45CC60 /* SetupScreens.swift in Sources */,
+				F4C022A85F4D15334357DBDD /* Theme.swift in Sources */,
 				247138AF02FF879B3EB30CD3 /* TranscriptClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

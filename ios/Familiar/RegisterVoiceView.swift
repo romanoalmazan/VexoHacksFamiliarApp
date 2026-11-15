@@ -30,7 +30,7 @@ final class VoiceRegistration {
     func connect(server: String, code: String) {
         close()
         guard let base = TranscriptClient.url(from: server) else {
-            state = .failed("Set the server address first (main screen, Live transcript).")
+            state = .failed("Set the server address first (Settings, then the server row).")
             return
         }
         var request = URLRequest(url: base.appendingPathComponent("voice"))
@@ -129,95 +129,6 @@ final class VoiceRegistration {
             }
         default:
             break
-        }
-    }
-}
-
-struct RegisterVoiceView: View {
-    let band: BandClient
-
-    @AppStorage("serverAddress") private var serverAddress = ""
-    @AppStorage("pairingCode") private var pairingCode = ""
-    @AppStorage("voiceRegistered") private var voiceRegistered = false
-    @Environment(\.dismiss) private var dismiss
-    @State private var voice = VoiceRegistration()
-
-    private var bandReady: Bool { band.phase == .connected && !band.micOn }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    if voice.isRegistered == true {
-                        Label("Your voice is registered", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
-                    } else if voice.isRegistered == false {
-                        Label("No voice registered yet", systemImage: "person.wave.2")
-                    }
-                    if case .failed(let reason) = voice.state {
-                        Label(reason, systemImage: "exclamationmark.triangle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
-                    }
-                    if let notice = voice.notice {
-                        Text(notice).font(.subheadline).foregroundStyle(.secondary)
-                    }
-                } footer: {
-                    Text("This is for the person wearing the band. Familiar keeps a description of how your voice sounds, not a recording, so it knows which voice is yours in every conversation.")
-                }
-
-                Section {
-                    Text("“When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colours. These take the shape of a long round arch, with its path high above, and its two ends apparently beyond the horizon.”")
-                        .font(.title3)
-                        .padding(.vertical, 4)
-                    if case .reading(let left) = voice.state {
-                        Label("Listening… keep reading for \(left) more second\(left == 1 ? "" : "s")", systemImage: "waveform")
-                            .foregroundStyle(.blue)
-                    } else if voice.state == .working || voice.state == .connecting {
-                        HStack { ProgressView(); Text(voice.state == .working ? "Learning your voice…" : "Connecting…") }
-                    } else {
-                        Button {
-                            voice.read(with: band)
-                        } label: {
-                            Label(voice.isRegistered == true ? "Read it again" : "Start, then read this out loud", systemImage: "mic.fill")
-                        }
-                        .disabled(voice.state != .ready || !bandReady)
-                    }
-                    if band.phase != .connected {
-                        Text("Connect the band first.").font(.subheadline).foregroundStyle(.secondary)
-                    } else if band.micOn, voice.state == .ready {
-                        Text("Switch Listen off first.").font(.subheadline).foregroundStyle(.secondary)
-                    }
-                } header: {
-                    Text("Read this in your normal voice")
-                } footer: {
-                    Text("Wear the band as you normally do and read for \(VoiceRegistration.readingSeconds) seconds. The band's light turns blue while it listens. Somewhere quiet works best.")
-                }
-
-                if voice.isRegistered == true {
-                    Section {
-                        Button("Forget my voice", role: .destructive) { voice.forget() }
-                            .disabled(voice.state != .ready)
-                    } footer: {
-                        Text("Without a registered voice, the first voice heard after Listen goes on is taken to be yours.")
-                    }
-                }
-            }
-            .navigationTitle("Register my voice")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-            }
-            .onAppear { voice.connect(server: serverAddress, code: pairingCode) }
-            .onDisappear {
-                if case .reading = voice.state {
-                    band.onAudio = nil
-                    Task { await band.setMic(false) }
-                }
-                voice.close()
-            }
-            .onChange(of: voice.isRegistered) { _, registered in
-                if let registered { voiceRegistered = registered }
-            }
         }
     }
 }

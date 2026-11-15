@@ -11,13 +11,16 @@ curl -L -o server/models/yunet.onnx https://github.com/opencv/opencv_zoo/raw/mai
 curl -L -o server/models/sface.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
 ```
 
-Then `python3 server/server.py` as before. In the app: **People & faces** → type the
-server address and pairing code → **Look for faces**. Add a person (name, who they are,
-a photo or the face in view) and they are recognised from then on.
+Then `python3 server/server.py` as before. In the app: the first-run setup asks for the
+server address and pairing code (later: **Settings** → the server row). On the **People**
+tab, **Register a person** (name, who they are, their yes, a photo or the face in view) and
+they are recognised from then on. **Listen** on the Now tab starts the camera; **Just look
+for faces** starts the camera alone.
 
 Camera pictures are compared and thrown away. Per enrolled person the server keeps a
 name, a relationship and numbers describing the face (`server/people.json`, not in git).
-Only enrol people who agreed. Swipe a person in the app to forget them.
+Only enrol people who agreed. Open a person on the People tab and tap **Forget** to
+delete them.
 
 ## Voices (server setup)
 
@@ -38,11 +41,12 @@ Uses Meta's Wearables Device Access Toolkit 1.0.1. On the demo iPhone:
 
 1. Pair the glasses in the Meta AI app.
 2. Meta AI → Settings → Your glasses → turn on **Developer Mode**.
-3. Familiar → People & faces → Camera: **Meta glasses** → **Link Meta glasses**.
+3. Familiar → Settings → Camera → **Meta glasses** → **Link Meta glasses**.
    Meta AI opens, asks, and returns to Familiar.
-4. **Look for faces**. The first time, Meta AI asks to allow the camera.
+4. **Listen** (or **Just look for faces**) on the Now tab. The first time, Meta AI asks to
+   allow the camera.
 
-Without glasses, choose **iPhone** as the camera: everything else is the same.
+Without glasses, choose **iPhone camera**: everything else is the same.
 
 
 ## Reflections
