@@ -22,7 +22,18 @@ final class TranscriptClient {
         var hidden = false
     }
 
+    /// A short summary of the conversation so far, written by Gemini on the server from the wearer's and
+    /// registered people's words only. Replaced whenever the server sends a newer one.
+    struct Summary: Equatable {
+        let text: String
+        let points: [String]
+        let followUps: [String]
+        let model: String
+        let lines: Int
+    }
+
     private(set) var state: State = .idle
+    private(set) var summary: Summary?
     /// What was said, settled.
     private(set) var lines: [Line] = []
     /// What is being said right now: a guess that may still change.
@@ -64,6 +75,7 @@ final class TranscriptClient {
         self.socket = socket
         state = .connecting
         guess = []
+        summary = nil
         me = nil
         names = [:]
         socket.resume()
@@ -80,6 +92,7 @@ final class TranscriptClient {
     func clear() {
         lines = []
         guess = []
+        summary = nil
     }
 
     /// The people named in this conversation, in the order they were first named.
@@ -90,6 +103,30 @@ final class TranscriptClient {
         }
         return seen
     }
+
+    #if DEBUG
+    /// Previews and screenshots only (never in a release build): a sample conversation and the summary
+    /// Gemini 4 Hydrogen wrote for it, shaped exactly as the server sends them.
+    func loadSample() {
+        me = 0
+        names = [1: "Maria"]
+        lines = [
+            Line(speaker: 0, text: "Maria! Come in, how was the trip?"),
+            Line(speaker: 1, text: "Long, but good. Leo graduated on Friday, I brought you photos."),
+            Line(speaker: 0, text: "Oh wonderful. What is he going to do now?"),
+            Line(speaker: 1, text: "He starts as a nurse at St. Mary's in January. We'll visit you again at Christmas."),
+            Line(speaker: 2, text: "", hidden: true),
+            Line(speaker: 0, text: "Tell him I'm proud of him."),
+        ]
+        summary = Summary(
+            text: "Maria is visiting after her trip. You are talking about Leo's graduation, his new job as a nurse, and a Christmas visit.",
+            points: ["Leo graduated on Friday and Maria brought photos.",
+                     "Leo starts as a nurse at St. Mary's in January.",
+                     "They will visit you again at Christmas."],
+            followUps: ["Ask to see the photos Maria brought.", "Ask more about Maria's trip."],
+            model: "gemini-4-hydrogen", lines: 5)
+    }
+    #endif
 
     /// One Opus packet from the band. Dropped until the server says it is ready.
     func send(_ opus: Data) {
@@ -131,6 +168,11 @@ final class TranscriptClient {
         let message: String?
         let me: Int?
         let names: [String: String]?
+        let summary: String?
+        let points: [String]?
+        let follow_ups: [String]?
+        let model: String?
+        let lines: Int?
     }
 
     /// Adds settled lines, joining what the same voice says in a row. Unregistered
@@ -162,6 +204,11 @@ final class TranscriptClient {
             guard message.final == true else { guess = pieces; return }
             guess = []
             append(pieces)
+        case "summary":
+            if let text = message.summary, !text.isEmpty {
+                summary = Summary(text: text, points: message.points ?? [], followUps: message.follow_ups ?? [],
+                                  model: message.model ?? "Gemini", lines: message.lines ?? lines.count)
+            }
         case "all":
             // A voice was just recognised as a registered person: the server sends the
             // whole conversation again, now with what that voice said earlier.

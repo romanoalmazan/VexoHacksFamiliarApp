@@ -32,6 +32,18 @@ brew install ffmpeg
 
 What is kept is a description of the voice (`server/me.json`, not in git), never sound.
 
+## Summaries (Gemini 4)
+
+While a conversation is going, the server asks **Gemini 4 Hydrogen** for a quick summary at most every
+20 seconds (once 3 new lines have settled) and the app shows it above the transcript under **So far**:
+one or two sentences, key points, and things to ask next. When the conversation ends, **Gemini 4 Carbon**
+writes a fuller summary that is saved with the conversation (`conversations/*.json`, key `summary`).
+
+Only the wearer's and registered people's words are sent, as text, same as for profiles. Uses the same
+`GEMINI_API_KEY`. Optional in `.env`: `GEMINI_SUMMARY_MODEL` (default `gemini-4-hydrogen`),
+`GEMINI_FINAL_SUMMARY_MODEL` (default `gemini-4-carbon`), `SUMMARY_EVERY` (seconds, default 20).
+Tests: `python3 -m unittest server/test_summaries.py`.
+
 ## Meta glasses
 
 Uses Meta's Wearables Device Access Toolkit 1.0.1. On the demo iPhone:

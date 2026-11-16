@@ -31,7 +31,21 @@ struct BandView: View {
     private var isLive: Bool { band.phase == .connected }
 
     var body: some View {
+        content
+        #if DEBUG
+            .task {
+                // Screenshots and demos of the screen without hardware: launch with -FamiliarSample
+                if ProcessInfo.processInfo.arguments.contains("-FamiliarSample") {
+                    band.connect(pretend: true)
+                    transcript.loadSample()
+                }
+            }
+        #endif
+    }
+
+    private var content: some View {
         NavigationStack {
+            ScrollViewReader { scroller in
             List {
                 Section {
                     statusRow
@@ -94,6 +108,23 @@ struct BandView: View {
                              : "Start the server on the laptop (python3 server/server.py) and copy its address and pairing code here. With no server address, Listen only counts the sound.")
                     }
 
+                    if let summary = transcript.summary {
+                        Section {
+                            Text(summary.text)
+                            ForEach(summary.points, id: \.self) { point in
+                                Label(point, systemImage: "smallcircle.filled.circle").font(.subheadline)
+                            }
+                            ForEach(summary.followUps, id: \.self) { ask in
+                                Label(ask, systemImage: "questionmark.bubble").font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        } header: {
+                            Text("So far")
+                        } footer: {
+                            Text("Summary by \(summary.model) of what you and registered people said.")
+                        }
+                        .id("summary")
+                    }
+
                     if !transcript.lines.isEmpty || !transcript.guess.isEmpty {
                         Section {
                             ForEach(transcript.lines) { line in spoken(line, settled: true) }
@@ -152,6 +183,16 @@ struct BandView: View {
             .sheet(isPresented: $registering) { RegisterView(watch: watch) }
             .sheet(isPresented: $registeringVoice) { RegisterVoiceView(band: band) }
             .animation(.default, value: band.phase)
+            #if DEBUG
+            .task(id: band.phase) {
+                // -FamiliarSample: show the summary without scrolling by hand (screenshots)
+                if ProcessInfo.processInfo.arguments.contains("-FamiliarSample"), transcript.summary != nil, isLive {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    withAnimation { scroller.scrollTo("summary", anchor: .top) }
+                }
+            }
+            #endif
+            }
         }
     }
 

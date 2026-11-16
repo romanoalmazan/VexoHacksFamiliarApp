@@ -15,6 +15,8 @@
 #       {"type": "transcript", "final": true|false, "segments": [{"speaker": 0, "text": "..."}]}
 #       {"type": "speakers", "me": 0, "names": {"1": "Maria"}}   which voice is which person
 #       {"type": "all", "segments": [...]}       everything settled so far, sent when a voice gets a name
+#       {"type": "summary", "final": false, "summary": "...", "points": [...], "follow_ups": [...],
+#        "model": "gemini-4-hydrogen", "lines": 12}               a quick summary so far (summaries.py)
 #       {"type": "error", "message": "..."}                       (see who.py for the rules)
 #
 # ONLY REGISTERED PEOPLE ARE RECORDED. Words are kept, shown and remembered only when the
@@ -57,6 +59,7 @@ import websockets
 
 from diarized import DiarizedSpeech, speech
 from profiles import Profiles, ProfilesError, env as setting
+from summaries import LiveSummaries, final_summary
 from who import Sight, Who
 
 try:
@@ -103,9 +106,29 @@ def save(started: float, lines: list, who: Who):
     conversation = {"started": started, "ended": time.time(), "people": people, "segments": kept}
     with open(SAVE_TO / name, "w", encoding="utf-8") as f:
         json.dump(conversation, f, indent=1)
+    conversation["file"] = SAVE_TO / name
     print("Saved the conversation (text only) to conversations/%s%s" % (
         name, ". %d line(s) from people who are not registered were not kept." % dropped if dropped else ""))
     return conversation
+
+
+def summarise_saved(conversation) -> None:
+    """After a conversation: one fuller summary (Gemini 4 Carbon), kept with the saved conversation."""
+    if not conversation or not conversation.get("segments"):
+        return
+    try:
+        summary = final_summary(conversation)
+    except ProfilesError as problem:
+        print("No summary of this conversation. %s" % problem)
+        return
+    file = conversation.pop("file", None)
+    conversation["summary"] = summary
+    if file:
+        with open(file, "w", encoding="utf-8") as f:
+            json.dump(conversation, f, indent=1)
+    print("Summary (%s): %s" % (summary["model"], summary["summary"]))
+    for point in summary["points"]:
+        print("  - %s" % point)
 
 
 def remember(conversation) -> None:
@@ -189,6 +212,8 @@ async def stream(phone, code: str) -> None:
             if message["type"] == "speakers":
                 print("  (voices: %s)" % ", ".join(["speaker %s is the wearer" % message["me"]] +
                                                    ["speaker %s is %s" % pair for pair in message["names"].items()]))
+            elif message["type"] == "summary":
+                print("  (summary by %s, %.1f s: %s)" % (message["model"], message["seconds"], message["summary"]))
             elif message["type"] == "transcript" and message["final"]:
                 for piece in message["segments"]:
                     if piece.get("hidden"):
@@ -196,6 +221,11 @@ async def stream(phone, code: str) -> None:
                     else:
                         print("  [%s] %s" % (who.person(piece["speaker"]), piece["text"]))
             await phone.send(json.dumps(message))
+
+    def shown_so_far():
+        """Settled lines of the wearer and registered people only: nobody else's words go to Gemini."""
+        return [dict(line, person=who.person(line["speaker"])) for line in list(lines) if who.person(line["speaker"])]
+    summaries = LiveSummaries(shown_so_far, lambda message: loop.call_soon_threadsafe(outbox.put_nowait, message)).start()
 
     sender = asyncio.create_task(to_phone())
     try:
@@ -210,6 +240,7 @@ async def stream(phone, code: str) -> None:
     except websockets.ConnectionClosed:
         pass
     finally:
+        summaries.stop()
         try:
             await loop.run_in_executor(None, ears.stop)     # waits for the last words
         except speech.VexoError:
@@ -217,6 +248,7 @@ async def stream(phone, code: str) -> None:
         await asyncio.sleep(0.1)                            # let the last words reach the phone
         sender.cancel()
         conversation = save(started, lines, who)
+        await loop.run_in_executor(None, summarise_saved, conversation)
         await loop.run_in_executor(None, remember, conversation)
         print("The phone stopped streaming.")
 
