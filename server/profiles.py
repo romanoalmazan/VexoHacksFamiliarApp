@@ -10,6 +10,7 @@
 # folder the server is started in. Optional: GEMINI_MODEL to pick the model yourself.
 import json
 import os
+import ssl
 import threading
 import time
 import urllib.error
@@ -70,6 +71,21 @@ def env(name: str) -> str:
     return found
 
 
+_SSL = None
+
+
+def ssl_context():
+    """Some Pythons on a Mac (the python.org installer) ship without certificates: use certifi's if installed."""
+    global _SSL
+    if _SSL is None:
+        try:
+            import certifi
+            _SSL = ssl.create_default_context(cafile=certifi.where())
+        except ImportError:
+            _SSL = ssl.create_default_context()
+    return _SSL
+
+
 def call(path: str, body=None, timeout=40) -> dict:
     key = env("GEMINI_API_KEY")
     if not key:
@@ -77,7 +93,7 @@ def call(path: str, body=None, timeout=40) -> dict:
     request = urllib.request.Request(API + path, data=json.dumps(body).encode() if body is not None else None,
                                      headers={"x-goog-api-key": key, "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as answer:
+        with urllib.request.urlopen(request, timeout=timeout, context=ssl_context()) as answer:
             return json.loads(answer.read())
     except urllib.error.HTTPError as problem:
         detail = ""
